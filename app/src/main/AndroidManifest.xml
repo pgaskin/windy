@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <uses-feature
+        android:name="android.software.live_wallpaper"
+        android:required="true" />
+
+    <uses-feature
+        android:glEsVersion="0x30001"
+        android:required="true" />
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:label="Windy Live Wallpaper Extended">
+
+        <activity
+            android:name="net.pgaskin.windy.LocationPermissionActivity"
+            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService1"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Windy, Blue"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService2"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Windy, Blush"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService3"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Windy, Midnight"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService4"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Your whirled, Sunset"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService5"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Your whirled, Turquoise"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService6"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Your whirled, Sky blue"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+    </application>
+
+</manifest>

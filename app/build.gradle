@@ -1,0 +1,65 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'net.pgaskin.windy'
+    compileSdk 33
+
+    defaultConfig {
+        applicationId "net.pgaskin.windy"
+        minSdk 31
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    sourceSets {
+        main {
+            jniLibs.srcDirs = ['libs']
+        }
+    }
+}
+
+configurations { natives }
+
+dependencies {
+    api "com.badlogicgames.gdx:gdx:1.12.0"
+    api "com.badlogicgames.gdx:gdx-backend-android:1.12.0"
+    natives "com.badlogicgames.gdx:gdx-platform:1.12.0:natives-arm64-v8a"
+}
+
+tasks.register("copyAndroidNatives") {
+    doFirst {
+        configurations.natives.files.each { jar ->
+            def match = jar.name =~ /natives-(.+?)\.jar$/
+            if (match.size() != 0) {
+                def arch = match[0][1]
+                def dir = file("libs/" + arch + "/")
+                dir.mkdirs()
+                copy {
+                    from zipTree(jar)
+                    into dir
+                    include "*.so"
+                }
+            }
+        }
+    }
+}
+
+tasks.configureEach { packageTask ->
+    if (packageTask.name.contains("package")) {
+        packageTask.dependsOn "copyAndroidNatives"
+    }
+}
