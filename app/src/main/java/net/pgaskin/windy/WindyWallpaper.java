@@ -41,6 +41,18 @@ public class WindyWallpaper {
         }
     }
 
+    public static class Maroon extends WindyWallpaperService {
+        public Config onConfigure() {
+            final Config config = new Config();
+            config.slowWindColor = new Color(0.576f, 0.192f, 0.192f, 0.25f);
+            config.fastWindColor = new Color(0.792f, 0.376f, 0.376f, 0.30f);
+            config.bgColor = new Color(0x1A0909FF);
+            config.bgColor2 = new Color(0x451717FF);
+            config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF4F1A1A), null, null, WallpaperColors.HINT_SUPPORTS_DARK_THEME);
+            return config;
+        }
+    }
+
     public static class SunsetWhirled extends WindyWallpaperService {
         public Config onConfigure() {
             final Config config = new Config();

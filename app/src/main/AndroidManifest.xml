@@ -68,6 +68,21 @@
         </service>
 
         <service
+            android:name="net.pgaskin.windy.WindyWallpaper$Maroon"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Windy, Maroon"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_wallpaper" />
+        </service>
+
+        <service
             android:name="net.pgaskin.windy.WindyWallpaper$SunsetWhirled"
             android:directBootAware="true"
             android:enabled="true"
