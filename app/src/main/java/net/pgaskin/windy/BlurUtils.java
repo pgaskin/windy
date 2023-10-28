@@ -1,25 +1,11 @@
 package net.pgaskin.windy;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
-
-import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.math.MathUtils;
-import java.io.ByteArrayOutputStream;
 
 public class BlurUtils {
     private static final int RADIUS = 2;
     private static final float[] KERNEL = {0.06136f, 0.24477f, 0.38774f, 0.24477f, 0.06136f}; // RADIUS*2 + 1
-
-    public static Pixmap blurAndDownscale(FileHandle fh) {
-        Bitmap bm = BitmapFactory.decodeFile(fh.file().getAbsolutePath());
-        Bitmap bm1 = Bitmap.createScaledBitmap(bm, bm.getWidth() / 4, bm.getHeight() / 4, true);
-        ByteArrayOutputStream stream = new ByteArrayOutputStream();
-        bm1.compress(Bitmap.CompressFormat.PNG, 100, stream);
-        byte[] byteArray = stream.toByteArray();
-        return blurPixmap(new Pixmap(byteArray, 0, byteArray.length));
-    }
 
     public static Pixmap blurPixmap(Pixmap pixmap) {
         int width = pixmap.getWidth();

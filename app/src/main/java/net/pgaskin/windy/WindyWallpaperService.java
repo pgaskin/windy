@@ -33,7 +33,7 @@ import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 public abstract class WindyWallpaperService extends AndroidLiveWallpaperService {
-    public class Engine extends AndroidLiveWallpaperService.AndroidWallpaperEngine implements ApplicationListener, AndroidWallpaperListener, WindFieldProvider.WindFieldUpdateListener {
+    public class Engine extends AndroidLiveWallpaperService.AndroidWallpaperEngine implements ApplicationListener, AndroidWallpaperListener {
         private static final String TAG = "Windy";
 
         // TODO: refactor this
@@ -58,6 +58,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         private SpriteBatch backgroundBatch;
         private TextureRegion windFieldRegion;
         private Texture windFieldTexture;
+        private int windFieldSeq;
 
         private volatile boolean createCalled = false;
         private volatile boolean loaded;
@@ -71,15 +72,10 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         private OrthographicCamera camera;
         private float lowFPSFrameDelta = 0.0f;
 
-        private final WindFieldProvider windFieldProvider;
-        private final Object windVectorFieldUpdatedLock = new Object();
-        private boolean windVectorFieldUpdated = false;
-
         public Engine(Context context, Config config) {
             this.context = context;
             this.config = config;
             this.powerSaveController = new PowerSaveController(context);
-            this.windFieldProvider = new WindFieldProvider(context, this);
         }
 
         private void updateBounds() {
@@ -115,8 +111,8 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
             Gdx.gl.glHint(0x8FB0, 0x8FB1);
 
             // wind field
-            Pixmap pixmap = this.windFieldProvider.currentPixmap();
-            this.windFieldTexture = new Texture(pixmap);
+            this.windFieldSeq = WindField.currentSeq();
+            this.windFieldTexture = WindField.createTexture(this.context);
             this.windFieldTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
             this.windFieldTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
             this.windFieldRegion = new TextureRegion(this.windFieldTexture);
@@ -221,8 +217,20 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         @Override // ApplicationListener
         public void render() {
             if (this.createCalled) {
+                if (this.windFieldSeq != WindField.currentSeq()) {
+                    Log.i(TAG, "loading updated wind field seq=" + WindField.currentSeq());
+                    this.windFieldTexture.dispose();
+                    this.windFieldSeq = WindField.currentSeq();
+                    this.windFieldTexture = WindField.createTexture(this.context);
+                    this.windFieldTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
+                    this.windFieldTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
+                    this.windFieldRegion = new TextureRegion(this.windFieldTexture);
+                    this.particleSystem.setVectorField(this.windFieldRegion);
+                    this.currentAlphaDecay = this.config.alphaDecayNewMap;
+                    this.redrawMapCounter = 0;
+                    this.updateBounds();
+                }
                 this.fpsThrottler.begin();
-                this.applyWindVectorFieldUpdate();
                 this.currentAlphaDecay += (this.config.alphaDecay - this.currentAlphaDecay) * 0.019f;
                 float frameDelta = Math.min(Gdx.graphics.getDeltaTime(), 0.055555556f);
                 if (!this.powerSaveController.isPowerSaveMode()) {
@@ -310,7 +318,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
         @Override // ApplicationListener
         public void resume() {
-            this.windFieldProvider.requestUpdate();
             this.powerSaveController.resume();
         }
 
@@ -358,43 +365,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
                 return this.config.wallpaperColors;
             }
             return super.onComputeColors();
-        }
-
-        @Override // WindVectorUpdateListener
-        public void onWindFieldUpdate() {
-            synchronized (this.windVectorFieldUpdatedLock) {
-                if (Gdx.app != null) {
-                    this.windVectorFieldUpdated = true;
-                }
-            }
-        }
-
-        private void applyWindVectorFieldUpdate() {
-            synchronized (this.windVectorFieldUpdatedLock) {
-                if (this.windVectorFieldUpdated) {
-                    this.windVectorFieldUpdated = false;
-
-                    if (this.windFieldTexture != null) {
-                        this.windFieldTexture.dispose();
-                    }
-
-                    try {
-                        Pixmap pixmap = this.windFieldProvider.currentPixmap();
-                        this.windFieldTexture = new Texture(pixmap);
-                        this.windFieldTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
-                        this.windFieldTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
-                        this.windFieldRegion = new TextureRegion(this.windFieldTexture);
-                        pixmap.dispose();
-                        this.particleSystem.setVectorField(this.windFieldRegion);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Failed to load updated texture: " + e);
-                    }
-
-                    this.currentAlphaDecay = this.config.alphaDecayNewMap;
-                    this.redrawMapCounter = 0;
-                    this.updateBounds();
-                }
-            }
         }
 
         private class WindyParticles implements Disposable {
