@@ -40,7 +40,7 @@ public class WindField {
                     // ignored
                 }
                 if (currentBitmap == null) {
-                    try (InputStream is = context.getAssets().open("windy/wind_cache.jpg")) {
+                    try (InputStream is = context.getAssets().open("windy/wind_cache.png")) {
                         if ((currentBitmap = BitmapFactory.decodeStream(is)) == null) {
                             throw new Exception("Failed to decode embedded wind field bitmap");
                         }
