@@ -135,20 +135,31 @@ public class WindField {
     }
 
     private static void blurKernel(int[] in, int[] out, int x, int y, int w, int h, boolean vertical) {
-        final int RADIUS = 2;
-        final float[] KERNEL = {0.06136f, 0.24477f, 0.38774f, 0.24477f, 0.06136f};
-        float a = 0, r = 0, g = 0, b = 0;
-        int center = vertical ? y : x;
-        for (int ki = 0, i = center - RADIUS; i <= center + RADIUS; i++, ki++) {
+        final int[] KERNEL = {
+                // gaussian blur kernel (radius 2)
+                // note: 65536 = 2^16
+                // note: sum is 65534/65536, so it's close enough (it must not be more, though, or pixels will overflow)
+                (int)(65536f * 0.06136f),
+                (int)(65536f * 0.24477f),
+                (int)(65536f * 0.38774f),
+                (int)(65536f * 0.24477f),
+                (int)(65536f * 0.06136f),
+        };
+        int r = 0, g = 0, b = 0;
+        for (int ki = 0, i = (vertical?y:x) - (KERNEL.length-1)/2; ki < KERNEL.length; i++, ki++) {
             int px = vertical ? x : MathUtils.clamp(i, 0, w-1);
             int py = vertical ? MathUtils.clamp(i, 0, h-1) : y;
             int pc = in[py*w + px];
-            float kv = KERNEL[ki];
-            a += (((pc & 0xff000000) >>> 24) / 255f) * kv;
-            r += (((pc & 0x00ff0000) >>> 16) / 255f) * kv;
-            g += (((pc & 0x0000ff00) >>> 8) / 255f) * kv;
-            b += (((pc & 0x000000ff)) / 255f) * kv;
+            int kv = KERNEL[ki];
+            r += kv * (0xFF & (pc >>> 16));
+            g += kv * (0xFF & (pc >>> 8));
+            b += kv * (0xFF & (pc));
         }
-        out[y*w + x] = ((int)(a * 255) << 24) | ((int)(r * 255) << 16) | ((int)(g * 255) << 8) | (int)(b * 255);
+        int pc = 0;
+        pc |= 0xFF << 24;
+        pc |= ((r >>> 16) << 16);
+        pc |= ((g >>> 16) << 8);
+        pc |= ((b >>> 16));
+        out[y*w + x] = pc;
     }
 }
