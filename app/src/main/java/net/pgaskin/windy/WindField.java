@@ -7,12 +7,12 @@ import android.util.Log;
 
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Pixmap;
-import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -42,6 +42,10 @@ public class WindField {
         }
     }
 
+    private static File windCacheFile(Context context, boolean temp) {
+        return new File(context.createDeviceProtectedStorageContext().getFilesDir(), "wind_cache.png" + (temp ? ".tmp" : ""));
+    }
+
     /**
      * Processes and caches a wind image for later use.
      * <ul>
@@ -54,38 +58,84 @@ public class WindField {
      *         <li>B color component is wind speed magnitude (0-1 where 0 is zero and 1 is some arbitrary maximum, probably around 30-40 m/s). If you look at the levels, it should normally look like a normal distribution on the lower part.
      *     </ul>
      *     <li>Processing: <ul>
-     *         <li>Gaussian blur horizontal/vertical with kernel size 5 and sigma 1.
      *         <li>Downscale to 1/4 of the size (bilinear).
+     *         <li>Gaussian blur horizontal/vertical with kernel size 5 and sigma 1.
      *         <li>This all has the effect of smoothing out sharper turns and removing very fine details from the wallpaper (TODO: it might be nice to have an option to keep this detail, since it looks interesting in itself)
      *     </ul>
      * </ul>
      */
-    public static void updateCache(Context context, InputStream srcStream) throws Exception {
+    public static void updateCache(Context context, InputStream src) throws Exception {
         Log.i(TAG, "updating cached field pixmap");
-        Bitmap srcBitmap = BitmapFactory.decodeStream(srcStream);
-        if (srcBitmap == null) {
+
+        BitmapFactory.Options cfg = new BitmapFactory.Options();
+        cfg.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        Bitmap img = BitmapFactory.decodeStream(src, null, cfg);
+        if (img == null) {
             throw new Exception("Failed to decode input bitmap");
         }
-        Bitmap sclBitmap = Bitmap.createScaledBitmap(srcBitmap, srcBitmap.getWidth() / 4, srcBitmap.getHeight() / 4, true);
-        ByteArrayOutputStream sclStream = new ByteArrayOutputStream();
-        if (!sclBitmap.compress(Bitmap.CompressFormat.PNG, 100, sclStream)) {
-            throw new Exception("Failed to encode scaled bitmap");
+        if (img.getConfig() != Bitmap.Config.ARGB_8888) {
+            throw new Exception("Input bitmap was not decoded as ARGB8888");
         }
-        byte[] sclBytes = sclStream.toByteArray();
-        Pixmap dstPixmap = BlurUtils.blurPixmap(new Pixmap(sclBytes, 0, sclBytes.length)); // TODO: replace this with something better
-        PixmapIO.writePNG(Gdx.files.absolute(windCacheFile(context, true).getAbsolutePath()), dstPixmap);
+
+        img = Bitmap.createScaledBitmap(img, img.getWidth() / 4, img.getHeight() / 4, true);
+        img = blur(img);
+
+        try (FileOutputStream tmp = new FileOutputStream(windCacheFile(context, true))) {
+            if (!img.compress(Bitmap.CompressFormat.PNG, 100, tmp)) {
+                throw new Exception("Failed to encode scaled bitmap");
+            }
+        }
         Files.move(windCacheFile(context, true).toPath(), windCacheFile(context, false).toPath(), StandardCopyOption.ATOMIC_MOVE);
+
+        Pixmap pixmap = new Pixmap(Gdx.files.absolute(windCacheFile(context, false).getAbsolutePath()));
         synchronized (currentPixmapLock) {
             if (currentPixmap != null) {
                 currentPixmap.dispose();
             }
-            currentPixmap = dstPixmap;
+            currentPixmap = pixmap;
             currentSeq.addAndGet(1);
         }
         System.gc();
     }
 
-    private static File windCacheFile(Context context, boolean temp) {
-        return new File(context.createDeviceProtectedStorageContext().getFilesDir(), "wind_cache.png" + (temp ? ".tmp" : ""));
+    private static Bitmap blur(Bitmap src) {
+        int w = src.getWidth();
+        int h = src.getHeight();
+        int[] a = new int[w*h];
+        int[] b = new int[w*h];
+        src.getPixels(a, 0, w, 0, 0, w, h); // ARGB8888
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                blurKernel(a, b, x, y, w, h, false);
+            }
+        }
+        for (int x = 0; x < w; x++) {
+            for (int y = 0; y < h; y++) {
+                blurKernel(a, b, x, y, w, h, true);
+            }
+        }
+        if (!src.isMutable()) {
+            src = Bitmap.createBitmap(w, h, src.getConfig());
+        }
+        src.setPixels(b, 0, w, 0, 0, w, h);
+        return src;
+    }
+
+    private static void blurKernel(int[] in, int[] out, int x, int y, int w, int h, boolean vertical) {
+        final int RADIUS = 2;
+        final float[] KERNEL = {0.06136f, 0.24477f, 0.38774f, 0.24477f, 0.06136f};
+        float a = 0, r = 0, g = 0, b = 0;
+        int center = vertical ? y : x;
+        for (int ki = 0, i = center - RADIUS; i <= center + RADIUS; i++, ki++) {
+            int px = vertical ? x : MathUtils.clamp(i, 0, w-1);
+            int py = vertical ? MathUtils.clamp(i, 0, h-1) : y;
+            int pc = in[py*w + px];
+            float kv = KERNEL[ki];
+            a += (((pc & 0xff000000) >>> 24) / 255f) * kv;
+            r += (((pc & 0x00ff0000) >>> 16) / 255f) * kv;
+            g += (((pc & 0x0000ff00) >>> 8) / 255f) * kv;
+            b += (((pc & 0x000000ff)) / 255f) * kv;
+        }
+        out[y*w + x] = ((int)(a * 255) << 24) | ((int)(r * 255) << 16) | ((int)(g * 255) << 8) | (int)(b * 255);
     }
 }
