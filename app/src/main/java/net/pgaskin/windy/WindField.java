@@ -3,13 +3,13 @@ package net.pgaskin.windy;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.opengl.GLES30;
+import android.opengl.GLUtils;
 import android.util.Log;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Pixmap;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.math.MathUtils;
-import com.badlogic.gdx.utils.GdxRuntimeException;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -21,24 +21,39 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class WindField {
     private static final String TAG = "WindField";
     private static final AtomicInteger currentSeq = new AtomicInteger();
-    private static final Object currentPixmapLock = new Object();
-    private static Pixmap currentPixmap;
+    private static final Object currentBitmapLock = new Object();
+    private static Bitmap currentBitmap;
 
     public static int currentSeq() {
         return currentSeq.get();
     }
 
     public static Texture createTexture(Context context) {
-        synchronized (currentPixmapLock) {
-            if (currentPixmap == null) {
-                Log.i(TAG, "loading initial wind field pixmap");
-                try {
-                    currentPixmap = new Pixmap(Gdx.files.absolute(windCacheFile(context, false).getAbsolutePath()));
-                } catch (GdxRuntimeException e) {
-                    currentPixmap = new Pixmap(Gdx.files.internal("windy/wind_cache.jpg"));
+        synchronized (currentBitmapLock) {
+            if (currentBitmap == null) {
+                Log.i(TAG, "loading initial wind field bitmap");
+                try (InputStream is = Files.newInputStream(windCacheFile(context, false).toPath())) {
+                    if ((currentBitmap = BitmapFactory.decodeStream(is)) == null) {
+                        throw new Exception("Failed to decode cached wind field bitmap");
+                    }
+                } catch (Exception ex) {
+                    // ignored
+                }
+                if (currentBitmap == null) {
+                    try (InputStream is = context.getAssets().open("windy/wind_cache.jpg")) {
+                        if ((currentBitmap = BitmapFactory.decodeStream(is)) == null) {
+                            throw new Exception("Failed to decode embedded wind field bitmap");
+                        }
+                    } catch (Exception ex1) {
+                        throw new RuntimeException(ex1);
+                    }
                 }
             }
-            return new Texture(currentPixmap);
+            Texture tex = new Texture(currentBitmap.getWidth(), currentBitmap.getHeight(), Pixmap.Format.RGBA8888);
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, tex.getTextureObjectHandle());
+            GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, currentBitmap, 0);
+            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0);
+            return tex;
         }
     }
 
@@ -87,15 +102,13 @@ public class WindField {
         }
         Files.move(windCacheFile(context, true).toPath(), windCacheFile(context, false).toPath(), StandardCopyOption.ATOMIC_MOVE);
 
-        Pixmap pixmap = new Pixmap(Gdx.files.absolute(windCacheFile(context, false).getAbsolutePath()));
-        synchronized (currentPixmapLock) {
-            if (currentPixmap != null) {
-                currentPixmap.dispose();
+        synchronized (currentBitmapLock) {
+            if (currentBitmap != null) {
+                currentBitmap.recycle();
             }
-            currentPixmap = pixmap;
+            currentBitmap = img;
             currentSeq.addAndGet(1);
         }
-        System.gc();
     }
 
     private static Bitmap blur(Bitmap src) {
