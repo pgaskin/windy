@@ -23,7 +23,7 @@
             android:theme="@android:style/Theme.Material.NoActionBar.TranslucentDecor" />
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaperService1"
+            android:name="net.pgaskin.windy.WindyWallpaper$Blue"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -38,7 +38,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaperService2"
+            android:name="net.pgaskin.windy.WindyWallpaper$Blush"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -53,7 +53,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaperService3"
+            android:name="net.pgaskin.windy.WindyWallpaper$Midnight"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -68,7 +68,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaperService4"
+            android:name="net.pgaskin.windy.WindyWallpaper$SunsetWhirled"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -83,7 +83,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaperService5"
+            android:name="net.pgaskin.windy.WindyWallpaper$TurquoiseWhirled"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -98,7 +98,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaperService6"
+            android:name="net.pgaskin.windy.WindyWallpaper$SkyBlueWhirled"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
