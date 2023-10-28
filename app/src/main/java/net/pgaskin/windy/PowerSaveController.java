@@ -6,50 +6,48 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.PowerManager;
 
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PowerSaveController {
-    private final BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            boolean bSavingPower;
-            if (Objects.equals(intent.getAction(), "android.os.action.POWER_SAVE_MODE_CHANGED") && PowerSaveController.this.savingPower.get() != (bSavingPower = PowerSaveController.this.powerManager.isPowerSaveMode())) {
-                PowerSaveController.this.savingPower.set(bSavingPower);
-            }
-        }
-    };
-    private boolean broadcastRegistered = false;
     private final Context context;
     private final PowerManager powerManager;
-    private final AtomicBoolean savingPower;
+    private final AtomicBoolean powerSaveMode = new AtomicBoolean();
+    private final IntentFilter filter = new IntentFilter("android.os.action.POWER_SAVE_MODE_CHANGED");
+    private boolean registered = false;
 
     public PowerSaveController(Context context) {
         this.context = context;
-        this.powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        this.savingPower = new AtomicBoolean(this.powerManager.isPowerSaveMode());
+        this.powerManager = (PowerManager) this.context.getSystemService(Context.POWER_SERVICE);
+        this.resume();
     }
 
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            PowerSaveController.this.updatePowerSaveMode();
+        }
+    };
+
     public synchronized void resume() {
-        if (!this.broadcastRegistered) {
-            boolean bSavingPower = this.powerManager.isPowerSaveMode();
-            if (this.savingPower.get() != bSavingPower) {
-                this.savingPower.set(bSavingPower);
-            }
-            IntentFilter filter = new IntentFilter("android.os.action.POWER_SAVE_MODE_CHANGED");
-            this.context.registerReceiver(this.broadcastReceiver, filter);
-            this.broadcastRegistered = true;
+        if (!this.registered) {
+            this.updatePowerSaveMode();
+            this.context.registerReceiver(this.receiver, this.filter);
+            this.registered = true;
         }
     }
 
     public synchronized void pause() {
-        if (this.broadcastRegistered) {
-            this.context.unregisterReceiver(this.broadcastReceiver);
-            this.broadcastRegistered = false;
+        if (this.registered) {
+            this.context.unregisterReceiver(this.receiver);
+            this.registered = false;
         }
     }
 
     public boolean isPowerSaveMode() {
-        return this.savingPower.get();
+        return this.powerSaveMode.get();
+    }
+
+    private void updatePowerSaveMode() {
+        this.powerSaveMode.set(this.powerManager.isPowerSaveMode());
     }
 }
