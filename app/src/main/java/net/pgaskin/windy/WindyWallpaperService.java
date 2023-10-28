@@ -3,7 +3,6 @@ package net.pgaskin.windy;
 import android.app.WallpaperColors;
 import android.content.Context;
 import android.util.Log;
-import android.view.SurfaceHolder;
 
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationListener;
@@ -66,7 +65,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         private boolean powerSaveOffsetFixed;
         private OrthographicCamera camera;
         private float lowFPSFrameDelta = 0.0f;
-        private boolean isPreview;
 
         private final WindFieldProvider windFieldProvider;
         private final Object windVectorFieldUpdatedLock = new Object();
@@ -335,9 +333,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         }
 
         @Override // AndroidWallpaperListener
-        public void previewStateChange(boolean b) {
-            this.isPreview = b;
-        }
+        public void previewStateChange(boolean b) {}
 
         @Override // AndroidWallpaperListener
         public void iconDropped(int x, int y) {}
