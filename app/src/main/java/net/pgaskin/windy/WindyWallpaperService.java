@@ -10,10 +10,13 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
 import com.badlogic.gdx.backends.android.AndroidLiveWallpaperService;
 import com.badlogic.gdx.backends.android.AndroidWallpaperListener;
+import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
+import com.badlogic.gdx.graphics.PixmapIO;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -34,6 +37,8 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         private static final String TAG = "Windy";
 
         // TODO: refactor this
+
+        private static final boolean DO_SCREENSHOTS = false;
 
         private static final int MIN_PAGES_TO_SWIPE = 4;
         private static final int NUM_TIMES_REDRAW = 240;
@@ -148,6 +153,15 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
             this.redrawMap(NUM_TIMES_REDRAW);
             this.redrawMapCounter = NUM_TIMES_REDRAW;
             this.loaded = true;
+
+            if (DO_SCREENSHOTS) {
+                String path = this.context.getExternalCacheDir() + "/" + WindyWallpaperService.this.getClass().getSimpleName() + ".png";
+                Gdx.gl.glPixelStorei(GL20.GL_PACK_ALIGNMENT, 1);
+                Pixmap scr = new Pixmap(Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), Pixmap.Format.RGBA8888);
+                Gdx.gl.glReadPixels(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), GL30.GL_RGBA, GL30.GL_UNSIGNED_BYTE, scr.getPixels());
+                PixmapIO.writePNG(new FileHandle(path), scr);
+                Log.w(TAG, "screenshot: " + path);
+            }
 
             this.resume();
         }
