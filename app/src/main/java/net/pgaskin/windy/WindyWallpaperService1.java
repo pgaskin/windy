@@ -13,7 +13,6 @@ public class WindyWallpaperService1 extends WindyWallpaperService {
         config.bgColor = new Color(71853823);
         config.bgColor2 = new Color(8760063);
         config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(-16232077), null, null, 0);
-        config.fakeLocation = new Vector2(-97.0f, 38.0f);
         return config;
     }
 }

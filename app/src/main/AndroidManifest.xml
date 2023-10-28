@@ -19,8 +19,8 @@
         android:label="Windy Live Wallpaper Extended">
 
         <activity
-            android:name="net.pgaskin.windy.LocationPermissionActivity"
-            android:theme="@android:style/Theme.NoTitleBar.Fullscreen" />
+            android:name="net.pgaskin.windy.LocationActivity"
+            android:theme="@android:style/Theme.Material.NoActionBar.TranslucentDecor" />
 
         <service
             android:name="net.pgaskin.windy.WindyWallpaperService1"

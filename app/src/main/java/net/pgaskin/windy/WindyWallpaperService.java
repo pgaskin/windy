@@ -3,6 +3,7 @@ package net.pgaskin.windy;
 import android.app.WallpaperColors;
 import android.content.Context;
 import android.util.Log;
+import android.view.SurfaceHolder;
 
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationListener;
@@ -42,7 +43,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         private final Context context;
         private final Config config;
         private final PowerSaveController powerSaveController;
-        private UserLocationController userLocationController;
         private FPSThrottler fpsThrottler;
 
         private WindyParticles particleSystem;
@@ -80,20 +80,18 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         }
 
         private void updateBounds() {
-            if (this.userLocationController != null) {
-                Vector2 lastKnown = this.config.fakeLocation != null
-                    ? this.config.fakeLocation
-                    : this.userLocationController.lastKnown(this.isPreview);
-                float wndLng = this.config.windowSize * ((float)(this.width) / (float)(this.height));
-                float wndLat = this.config.windowSize;
-                float centerLng = lastKnown.x;
-                float centerLat = lastKnown.y;
-                float boundL = MathUtils.clamp(centerLng - wndLng/2f, -180, 180);
-                float boundT = MathUtils.clamp(centerLat + wndLat/2f, -90, 90);
-                float boundR = MathUtils.clamp(boundL + wndLng, -180, 180);
-                float boundB = MathUtils.clamp(boundT - wndLat, -90, 90);
-                this.windFieldRegion.setRegion(lngToRatio(boundL), latToRatio(boundT), lngToRatio(boundR), latToRatio(boundB));
-            }
+            Vector2 location = this.config.fakeLocation != null
+                ? this.config.fakeLocation
+                : LocationActivity.updateLocation(this.context, true);
+            float wndLng = this.config.windowSize * ((float)(this.width) / (float)(this.height));
+            float wndLat = this.config.windowSize;
+            float centerLng = location != null ? location.x : -97.0f;
+            float centerLat = location != null ? location.y : 38.0f;
+            float boundL = MathUtils.clamp(centerLng - wndLng/2f, -180, 180);
+            float boundT = MathUtils.clamp(centerLat + wndLat/2f, -90, 90);
+            float boundR = MathUtils.clamp(boundL + wndLng, -180, 180);
+            float boundB = MathUtils.clamp(boundT - wndLat, -90, 90);
+            this.windFieldRegion.setRegion(lngToRatio(boundL), latToRatio(boundT), lngToRatio(boundR), latToRatio(boundB));
         }
 
         private float lngToRatio(float lng) {
@@ -108,7 +106,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         public void create() {
             this.fpsThrottler = new FPSThrottler(this.powerSaveController);
             this.currentAlphaDecay = this.config.alphaDecay;
-            this.userLocationController = new UserLocationController(this.context);
 
             // QCOM_binning_control: BINNING_CONTROL_HINT_QCOM = CPU_OPTIMIZED_QCOM
             Gdx.gl.glEnable(0x8FB0);
