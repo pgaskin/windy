@@ -116,6 +116,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
             this.windFieldTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
             this.windFieldTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
             this.windFieldRegion = new TextureRegion(this.windFieldTexture);
+            WindFieldUpdateService.scheduleNow(context);
 
             // particle system
             this.particleSystem = new WindyParticles(this.config, PARTICLE_SIZE);
@@ -478,6 +479,8 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
     @Override // AndroidLiveWallpaperService
     public void onCreateApplication() {
+        WindFieldUpdateService.schedulePeriodic(this);
+
         final AndroidApplicationConfiguration cfg = new AndroidApplicationConfiguration();
         cfg.useAccelerometer = false;
         cfg.useCompass = false;

@@ -30,6 +30,10 @@ android {
             jniLibs.srcDirs = ['libs']
         }
     }
+
+    buildFeatures {
+        buildConfig true
+    }
 }
 
 configurations { natives }

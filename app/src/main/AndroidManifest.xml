@@ -23,6 +23,10 @@
             android:theme="@android:style/Theme.Material.NoActionBar.TranslucentDecor" />
 
         <service
+            android:name="net.pgaskin.windy.WindFieldUpdateService"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <service
             android:name="net.pgaskin.windy.WindyWallpaper$Blue"
             android:directBootAware="true"
             android:enabled="true"
