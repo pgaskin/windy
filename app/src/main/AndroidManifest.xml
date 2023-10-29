@@ -27,7 +27,7 @@
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$Blue"
+            android:name="net.pgaskin.windy.WindyWallpaperService$Blue"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -42,7 +42,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$Blush"
+            android:name="net.pgaskin.windy.WindyWallpaperService$Blush"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -57,7 +57,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$Midnight"
+            android:name="net.pgaskin.windy.WindyWallpaperService$Midnight"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -72,7 +72,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$Maroon"
+            android:name="net.pgaskin.windy.WindyWallpaperService$Maroon"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -87,7 +87,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$SunsetWhirled"
+            android:name="net.pgaskin.windy.WindyWallpaperService$SunsetWhirled"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -102,7 +102,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$TurquoiseWhirled"
+            android:name="net.pgaskin.windy.WindyWallpaperService$TurquoiseWhirled"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
@@ -117,7 +117,7 @@
         </service>
 
         <service
-            android:name="net.pgaskin.windy.WindyWallpaper$SkyBlueWhirled"
+            android:name="net.pgaskin.windy.WindyWallpaperService$SkyBlueWhirled"
             android:directBootAware="true"
             android:enabled="true"
             android:exported="true"
