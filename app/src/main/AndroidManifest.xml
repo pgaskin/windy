@@ -16,7 +16,7 @@
 
     <application
         android:icon="@mipmap/ic_launcher"
-        android:label="Windy Live Wallpaper Extended">
+        android:label="Windy Live Wallpaper">
 
         <activity
             android:name="net.pgaskin.windy.LocationActivity"
