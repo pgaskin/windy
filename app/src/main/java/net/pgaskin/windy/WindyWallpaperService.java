@@ -473,7 +473,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         }
     }
 
-
     @Override // AndroidLiveWallpaperService
     public void onCreateApplication() {
         WindFieldUpdateService.schedulePeriodic(this);
@@ -488,11 +487,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
         super.onCreateApplication();
         this.app.setLogLevel(Application.LOG_INFO);
-        this.initialize(new Engine(this, this.onConfigure()), cfg);
-    }
-
-    public Config onConfigure() {
-        return new Config();
+        this.initialize(new Engine(this, this.config), cfg);
     }
 
     public static class Config {
@@ -511,4 +506,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         public float particleOpacity = 0.6f;
         public WallpaperColors wallpaperColors;
     }
+
+    protected final Config config = new Config();
 }
