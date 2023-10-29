@@ -1,8 +1,5 @@
 package net.pgaskin.windy;
 
-import android.app.WallpaperColors;
-import android.os.Build;
-
 import com.badlogic.gdx.graphics.Color;
 
 public class WindyWallpaper {
@@ -12,9 +9,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(0.98039216f, 0.94117650f, 0.82352940f, 0.25f);
             config.bgColor = new Color(0x044866FF);
             config.bgColor2 = new Color(0x0085AAFF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF085173), null, null, 0);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x085173FF);
         }
     }
 
@@ -24,9 +19,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(0.8627451f, 0.9647059f, 1.00000000f, 0.50f);
             config.bgColor = new Color(0x4078C8FF);
             config.bgColor2 = new Color(0xD9B0EAFF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF4A7CC9), null, null, 0);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x4A7CC9FF);
         }
     }
 
@@ -36,9 +29,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(0.72941180f, 0.74117650f, 0.73725490f, 0.30f);
             config.bgColor = new Color(0x000000AF);
             config.bgColor2 = new Color(0x464749FF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF101110), null, null, WallpaperColors.HINT_SUPPORTS_DARK_THEME);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x101110FF);
         }
     }
 
@@ -48,9 +39,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(0.792f, 0.376f, 0.376f, 0.30f);
             config.bgColor = new Color(0x1A0909FF);
             config.bgColor2 = new Color(0x451717FF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF4F1A1A), null, null, WallpaperColors.HINT_SUPPORTS_DARK_THEME);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x4F1A1AFF);
         }
     }
 
@@ -60,9 +49,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(1.0000000f, 1.0000000f, 1.00000000f, 0.70f);
             config.bgColor = new Color(0xE58186Df);
             config.bgColor2 = new Color(0xF7B38DDF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFFE88991), null, null, 0);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0xE88991FF);
         }
     }
 
@@ -72,9 +59,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(1.00000000f, 1.00000000f, 1.00000000f, 0.50f);
             config.bgColor = new Color(0x0093B9DF);
             config.bgColor2 = new Color(0xEFDD81DF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF0996B7), null, null, 0);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x0996B7FF);
         }
     }
 
@@ -84,9 +69,7 @@ public class WindyWallpaper {
             config.fastWindColor = new Color(0.95686275f, 1.0000000f, 0.5294118f, 0.25f);
             config.bgColor = new Color(0x75AAFAFF);
             config.bgColor2 = new Color(0xF4FF87FF);
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                config.wallpaperColors = new WallpaperColors(android.graphics.Color.valueOf(0xFF7BAEF5), null, null, 0);
-            }
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x7BAEF5FF);
         }
     }
 }

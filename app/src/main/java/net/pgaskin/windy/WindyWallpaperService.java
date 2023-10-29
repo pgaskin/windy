@@ -1,6 +1,5 @@
 package net.pgaskin.windy;
 
-import android.app.WallpaperColors;
 import android.content.Context;
 import android.util.Log;
 
@@ -8,6 +7,7 @@ import com.badlogic.gdx.Application;
 import com.badlogic.gdx.ApplicationListener;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
+import com.badlogic.gdx.backends.android.AndroidLiveWallpaper;
 import com.badlogic.gdx.backends.android.AndroidLiveWallpaperService;
 import com.badlogic.gdx.backends.android.AndroidWallpaperListener;
 import com.badlogic.gdx.files.FileHandle;
@@ -32,7 +32,7 @@ import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 
 public abstract class WindyWallpaperService extends AndroidLiveWallpaperService {
-    public class Engine extends AndroidLiveWallpaperService.AndroidWallpaperEngine implements ApplicationListener, AndroidWallpaperListener {
+    public static class Windy implements ApplicationListener, AndroidWallpaperListener {
         private static final String TAG = "Windy";
 
         // TODO: refactor this
@@ -71,7 +71,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         private OrthographicCamera camera;
         private float lowFPSFrameDelta = 0.0f;
 
-        public Engine(Context context, Config config) {
+        public Windy(Context context, Config config) {
             this.context = context;
             this.config = config;
             this.powerSaveController = new PowerSaveController(context);
@@ -104,6 +104,18 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         public void create() {
             this.fpsThrottler = new FPSThrottler(this.powerSaveController);
             this.currentAlphaDecay = this.config.alphaDecay;
+
+            // wallpaper colors
+            if (this.config.wallpaperColorPrimary != null) {
+                Color c1 = this.config.wallpaperColorPrimary;
+                Color c2 = this.config.wallpaperColorSecondary != null ? this.config.wallpaperColorSecondary : c1;
+                Color c3 = this.config.wallpaperColorTertiary != null ? this.config.wallpaperColorTertiary : c2;
+                if (Gdx.app instanceof AndroidLiveWallpaper) {
+                    ((AndroidLiveWallpaper) Gdx.app).notifyColorsChanged(c1, c2, c3);
+                } else {
+                    Log.w(TAG, "failed to notify wallpaper colors since Gdx.app is not an AndroidLiveWallpaper");
+                }
+            }
 
             // QCOM_binning_control: BINNING_CONTROL_HINT_QCOM = CPU_OPTIMIZED_QCOM
             Gdx.gl.glEnable(0x8FB0);
@@ -151,7 +163,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
             this.loaded = true;
 
             if (DO_SCREENSHOTS) {
-                String path = this.context.getExternalCacheDir() + "/" + WindyWallpaperService.this.getClass().getSimpleName() + ".png";
+                String path = this.context.getExternalCacheDir() + "/" + this.context.getClass().getSimpleName() + ".png";
                 Gdx.gl.glPixelStorei(GL30.GL_PACK_ALIGNMENT, 1);
                 Pixmap scr = new Pixmap(Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), Pixmap.Format.RGBA8888);
                 Gdx.gl.glReadPixels(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), GL30.GL_RGBA, GL30.GL_UNSIGNED_BYTE, scr.getPixels());
@@ -357,14 +369,6 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         @Override // AndroidWallpaperListener
         public void iconDropped(int x, int y) {}
 
-        @Override // AndroidWallpaperEngine
-        public WallpaperColors onComputeColors() {
-            if (this.config.wallpaperColors != null) {
-                return this.config.wallpaperColors;
-            }
-            return super.onComputeColors();
-        }
-
         private class WindyParticles implements Disposable {
             private final Config config;
             private final SpriteBatch batch;
@@ -473,6 +477,8 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         }
     }
 
+    private Windy windy;
+
     @Override // AndroidLiveWallpaperService
     public void onCreateApplication() {
         WindFieldUpdateService.schedulePeriodic(this);
@@ -487,7 +493,18 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
         super.onCreateApplication();
         this.app.setLogLevel(Application.LOG_INFO);
-        this.initialize(new Engine(this, this.config), cfg);
+
+        this.windy = new Windy(this, this.config);
+        this.initialize(windy, cfg);
+    }
+
+    @Override
+    public void onDestroy() {
+        if (this.windy != null) {
+            // this doesn't seem to get called properly by GDX unless we do this...
+            this.windy.pause();
+        }
+        super.onDestroy();
     }
 
     public static class Config {
@@ -504,7 +521,9 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         public float alphaDecay = 0.9965f;
         public float alphaDecayNewMap = 0.91f;
         public float particleOpacity = 0.6f;
-        public WallpaperColors wallpaperColors;
+        public Color wallpaperColorPrimary;
+        public Color wallpaperColorSecondary;
+        public Color wallpaperColorTertiary;
     }
 
     protected final Config config = new Config();
