@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: 'go.mod'
+      - run: cargo install --bin gribber --version 0.7.1 grib-cli && gribber --version
+      - run: go test -v ./api
+      - run: go vet ./api
+      - run: go run ./api -help
+      - run: go run ./api -once
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wind-field
+          path: |
+            wind_field.jpg
+            wind_field.png
+
+  app:
+    name: App
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: gradle
+      - run: ./gradlew app:assembleDebug
+      - uses: actions/upload-artifact@v3
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
