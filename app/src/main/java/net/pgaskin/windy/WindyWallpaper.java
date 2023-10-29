@@ -403,14 +403,14 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
             this.config = config;
 
             float[] indices = new float[this.config.particleCount * 3];
-            indices: for (int y = 0; y < 64; y++) {
-                for (int x = 0; x < 64; x++) {
-                    int index = ((y * 64) + x) * 3;
+            indices: for (int y = 0; y < POSITION_TEXTURE_SIZE; y++) {
+                for (int x = 0; x < POSITION_TEXTURE_SIZE; x++) {
+                    int index = ((y * POSITION_TEXTURE_SIZE) + x) * 3;
                     if (index >= indices.length) {
                         break indices;
                     }
-                    indices[index] = x / 64.0f;
-                    indices[index + 1] = y / 64.0f;
+                    indices[index] = x / (float) (POSITION_TEXTURE_SIZE);
+                    indices[index + 1] = y / (float) (POSITION_TEXTURE_SIZE);
                 }
             }
 
@@ -423,7 +423,7 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
             }
 
             this.batch = new SpriteBatch(1);
-            this.batch.getProjectionMatrix().setToOrtho(0.0f, 64.0f, 64.0f, 0.0f, 0.0f, 10.0f);
+            this.batch.getProjectionMatrix().setToOrtho(0.0f, POSITION_TEXTURE_SIZE, POSITION_TEXTURE_SIZE, 0.0f, 0.0f, 10.0f);
             this.batch.setShader(this.shader);
         }
 
