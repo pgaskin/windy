@@ -1,6 +1,8 @@
-# Windy Live Wallpaper
+<h1 align="center">Windy Live Wallpaper</h1>
 
-Android live wallpaper visualizing local wind patterns.
+<a href="https://github.com/pgaskin/windy/actions/workflows/ci.yml"><img align="right" src="https://github.com/pgaskin/windy/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+
+**Android live wallpaper visualizing local wind patterns.**
 
 Shaders and basic rendering logic are based on the official Pixel windy live wallpaper, but this also has:
 
@@ -10,6 +12,8 @@ Shaders and basic rendering logic are based on the official Pixel windy live wal
 - Lower memory and CPU usage.
 - Modernized code, updated libGDX.
 - Other fixes.
+
+[**`Download Latest Build`**](https://nightly.link/pgaskin/windy/workflows/ci/master/app-debug)
 
 #### Screenshots
 
