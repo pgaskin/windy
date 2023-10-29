@@ -22,6 +22,7 @@ android {
 
     buildTypes {
         eng {
+            signingConfig signingConfigs.debug
             buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "15" // min
             buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL_STARTUP", "1" // min
             buildConfigField "boolean", "SAVE_SCREENSHOTS", "true"
