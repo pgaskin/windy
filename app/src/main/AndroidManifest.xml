@@ -38,7 +38,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_blue" />
         </service>
 
         <service
@@ -53,7 +53,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_blush" />
         </service>
 
         <service
@@ -68,7 +68,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_midnight" />
         </service>
 
         <service
@@ -83,7 +83,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_maroon" />
         </service>
 
         <service
@@ -98,7 +98,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_sunsetwhirled" />
         </service>
 
         <service
@@ -113,7 +113,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_turqoisewhirled" />
         </service>
 
         <service
@@ -128,7 +128,7 @@
             </intent-filter>
             <meta-data
                 android:name="android.service.wallpaper"
-                android:resource="@xml/windy_wallpaper" />
+                android:resource="@xml/windy_skybluewhirled" />
         </service>
 
     </application>

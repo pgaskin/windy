@@ -181,6 +181,8 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
             Gdx.gl.glReadPixels(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), GL30.GL_RGBA, GL30.GL_UNSIGNED_BYTE, scr.getPixels());
             PixmapIO.writePNG(Gdx.files.absolute(path), scr);
             Log.w(TAG, "screenshot: " + path);
+            // note: generate previews with something like:
+            // for x in Android/data/net.pgaskin.windy/cache/*.png; do base=${x%%.png}; convert $x -alpha off -crop 540x960+512+256 app/src/main/res/drawable/windy_${base,,}.jpg; done
         }
 
         this.resume();
