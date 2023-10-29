@@ -20,7 +20,7 @@
 
         <activity
             android:name="net.pgaskin.windy.LocationActivity"
-            android:theme="@android:style/Theme.Material.NoActionBar.TranslucentDecor" />
+            android:theme="@style/Theme.Transparent" />
 
         <service
             android:name="net.pgaskin.windy.WindFieldUpdateService"
