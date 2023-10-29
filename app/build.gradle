@@ -12,9 +12,20 @@ android {
         targetSdk 33
         versionCode 1
         versionName "1"
+
+        buildConfigField "String", "WIND_FIELD_API_HOST", "\"windy.api.pgaskin.net\""
+        buildConfigField "long", "WIND_FIELD_SIZE_ESTIMATED", "1500" // kB
+        buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "360" // min
+        buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL_MINIMUM", "15" // min
+        buildConfigField "boolean", "SAVE_SCREENSHOTS", "false"
     }
 
     buildTypes {
+        eng {
+            buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "15" // min
+            buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL_STARTUP", "1" // min
+            buildConfigField "boolean", "SAVE_SCREENSHOTS", "true"
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')

@@ -17,20 +17,20 @@ import javax.net.ssl.HttpsURLConnection;
 
 public class WindFieldUpdateService extends JobService {
     private static final String TAG = "WindFieldUpdateService";
-    private static final int JOB_ID_STARTUP = TAG.hashCode() + 1;
-    private static final int JOB_ID_PERIODIC = TAG.hashCode() + 2;
 
-    private static final String WIND_FIELD_URL = "https://windy.api.pgaskin.net/wind_field.jpg";
-    private static final long WIND_FIELD_ESTIMATED_SIZE_BYTES = 1500*1000;
-    private static final long MIN_FORCED_UPDATE_MILLIS = 15*60*1000;
-    private static final long UPDATE_INTERVAL_MILLIS = 6*60*60*1000;
-    private static final long UPDATE_SLACK_MILLIS = 60*60*1000;
-    private static final long INITIAL_UPDATE_BACKOFF_MILLIS = 5*60*1000;
-    private static final int UPDATE_BACKOFF_POLICY = JobInfo.BACKOFF_POLICY_EXPONENTIAL;
+    private static final int JOB_ID_STARTUP = 72351003;
+    private static final int JOB_ID_PERIODIC = 72351004;
 
     @Override
     public boolean onStartJob(JobParameters params) {
-        Log.i(TAG, "doing wind field update");
+        String why = describeJob(params.getJobId());
+        if (why == null) {
+            Log.i(TAG, "unknown job id (it might be old), canceling job");
+            this.getSystemService(JobScheduler.class).cancel(params.getJobId());
+            return false;
+        }
+
+        Log.i(TAG, "doing wind field update (" + why + ")");
         new Thread(() -> {
             try {
                 Network net = params.getNetwork();
@@ -38,8 +38,8 @@ public class WindFieldUpdateService extends JobService {
                     throw new Exception("no network for job");
                 }
 
-                HttpsURLConnection conn = (HttpsURLConnection) net.openConnection(new URL(WIND_FIELD_URL));
-                conn.setRequestProperty("User-Agent", "WindyLiveWallpaper/" + BuildConfig.VERSION_NAME + " " + System.getProperty("http.agent"));
+                HttpsURLConnection conn = (HttpsURLConnection) net.openConnection(new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_field.jpg"));
+                conn.setRequestProperty("User-Agent", "WindyLiveWallpaper/" + BuildConfig.VERSION_NAME + " (" + BuildConfig.APPLICATION_ID + " " + BuildConfig.VERSION_CODE + "; " + BuildConfig.BUILD_TYPE + "; job:" + why + ") " + System.getProperty("http.agent"));
 
                 String etag = getPreferences(this).getString("etag", null);
                 if (etag != null) {
@@ -83,44 +83,60 @@ public class WindFieldUpdateService extends JobService {
         return context.createDeviceProtectedStorageContext().getSharedPreferences("wind", Context.MODE_PRIVATE);
     }
 
-    public static void scheduleNow(Context context) {
-        long last = getPreferences(context).getLong("last_expedited_update", 0);
-        if (Math.abs(System.currentTimeMillis() - last) < MIN_FORCED_UPDATE_MILLIS) {
-            Log.w(TAG, "not scheduling requested expedited wind field update since last one was scheduled very recently");
-            return;
+    public static String describeJob(int jobID) {
+        switch (jobID) {
+            case JOB_ID_PERIODIC:
+                return "periodic";
+            case JOB_ID_STARTUP:
+                return "startup";
+            default:
+                return null;
         }
-        Log.i(TAG, "scheduling expedited wind field update");
-        try {
-            JobInfo.Builder builder = new JobInfo.Builder(JOB_ID_STARTUP, new ComponentName(context, WindFieldUpdateService.class));
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                builder.setExpedited(true);
-            }
-            builder.setEstimatedNetworkBytes(WIND_FIELD_ESTIMATED_SIZE_BYTES, 0);
-            builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
-            builder.setBackoffCriteria(INITIAL_UPDATE_BACKOFF_MILLIS, UPDATE_BACKOFF_POLICY); // note: capped at 5h; may be longer during doze
-            if (context.getSystemService(JobScheduler.class).schedule(builder.build()) != JobScheduler.RESULT_SUCCESS) {
-                throw new Exception("job scheduler rejected job");
-            }
-        } catch (Exception ex) {
-            Log.e(TAG, "failed to schedule expedited wind field update");
-        }
-        getPreferences(context).edit().putLong("last_expedited_update", System.currentTimeMillis()).apply();
     }
 
-    public static void schedulePeriodic(Context context) {
-        Log.i(TAG, "scheduling periodic wind field update");
+    public static boolean scheduleStartup(Context context) {
+        long last = getPreferences(context).getLong("last_expedited_update", 0);
+        if (Math.abs(System.currentTimeMillis() - last) < BuildConfig.WIND_FIELD_UPDATE_INTERVAL_MINIMUM * 60 * 1000) {
+            Log.w(TAG, "not scheduling requested expedited wind field update since last one was scheduled very recently");
+            return false;
+        }
+        getPreferences(context).edit().putLong("last_expedited_update", System.currentTimeMillis()).apply();
+        return schedule(context, JOB_ID_STARTUP);
+    }
+
+    public static boolean schedulePeriodic(Context context) {
+        return schedule(context, JOB_ID_PERIODIC);
+    }
+
+    private static boolean schedule(Context context, int jobID) {
+        Log.i(TAG, "scheduling wind field update job (type: " + describeJob(jobID) + ")");
         try {
-            JobInfo.Builder builder = new JobInfo.Builder(JOB_ID_PERIODIC, new ComponentName(context, WindFieldUpdateService.class));
-            builder.setPeriodic(UPDATE_INTERVAL_MILLIS, UPDATE_SLACK_MILLIS);
-            builder.setRequiresBatteryNotLow(true);
+            JobInfo.Builder builder = new JobInfo.Builder(jobID, new ComponentName(context, WindFieldUpdateService.class));
+            switch (jobID) {
+                case JOB_ID_PERIODIC:
+                    builder.setPeriodic(BuildConfig.WIND_FIELD_UPDATE_INTERVAL * 60 * 1000, BuildConfig.WIND_FIELD_UPDATE_INTERVAL * 60 * 1000 / 4);
+                    builder.setRequiresBatteryNotLow(true);
+                    break;
+                case JOB_ID_STARTUP:
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        builder.setExpedited(true);
+                    }
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown jobID");
+            }
             builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
-            builder.setEstimatedNetworkBytes(WIND_FIELD_ESTIMATED_SIZE_BYTES, 0);
-            builder.setBackoffCriteria(INITIAL_UPDATE_BACKOFF_MILLIS, UPDATE_BACKOFF_POLICY); // note: capped at 5h; may be longer during doze
-            if (context.getSystemService(JobScheduler.class).schedule(builder.build()) != JobScheduler.RESULT_SUCCESS) {
-                throw new Exception("job scheduler rejected job");
+            builder.setEstimatedNetworkBytes(BuildConfig.WIND_FIELD_SIZE_ESTIMATED * 1000, 0);
+            builder.setBackoffCriteria(BuildConfig.WIND_FIELD_UPDATE_INTERVAL_MINIMUM * 60 * 1000, JobInfo.BACKOFF_POLICY_EXPONENTIAL);
+
+            JobScheduler scheduler = context.getSystemService(JobScheduler.class);
+            if (scheduler.schedule(builder.build()) != JobScheduler.RESULT_SUCCESS) {
+                throw new RuntimeException("Job scheduler rejected job");
             }
         } catch (Exception ex) {
-            Log.e(TAG, "failed to schedule periodic wind field update");
+            Log.e(TAG, "failed to schedule wind field update job (type: " + describeJob(jobID) + ")");
+            return false;
         }
+        return true;
     }
 }

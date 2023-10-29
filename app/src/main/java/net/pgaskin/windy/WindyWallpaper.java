@@ -52,8 +52,6 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
 
     // TODO: refactor this
 
-    private static final boolean DO_SCREENSHOTS = false;
-
     private static final int MIN_PAGES_TO_SWIPE = 4;
     private static final int NUM_TIMES_REDRAW = 240;
     private final Vector2 SCALE = new Vector2(1.2f, 1.15f); // for page swipe offset parallax
@@ -142,7 +140,7 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
         this.windFieldTexture.setWrap(Texture.TextureWrap.Repeat, Texture.TextureWrap.Repeat);
         this.windFieldTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear);
         this.windFieldRegion = new TextureRegion(this.windFieldTexture);
-        WindFieldUpdateService.scheduleNow(context);
+        WindFieldUpdateService.scheduleStartup(context);
 
         // particle system
         this.particleSystem = new Particles(this.config, SCALE);
@@ -177,12 +175,12 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
         this.redrawMapCounter = NUM_TIMES_REDRAW;
         this.loaded = true;
 
-        if (DO_SCREENSHOTS) {
+        if (BuildConfig.SAVE_SCREENSHOTS) {
             String path = this.context.getExternalCacheDir() + "/" + this.context.getClass().getSimpleName() + ".png";
             Gdx.gl.glPixelStorei(GL30.GL_PACK_ALIGNMENT, 1);
             Pixmap scr = new Pixmap(Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), Pixmap.Format.RGBA8888);
             Gdx.gl.glReadPixels(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), GL30.GL_RGBA, GL30.GL_UNSIGNED_BYTE, scr.getPixels());
-            PixmapIO.writePNG(new FileHandle(path), scr);
+            PixmapIO.writePNG(Gdx.files.absolute(path), scr);
             Log.w(TAG, "screenshot: " + path);
         }
 
