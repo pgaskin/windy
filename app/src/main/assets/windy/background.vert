@@ -14,11 +14,10 @@ in vec2 a_texCoord0;
 
 out lowp vec2 v_uv;
 
-void main()  {
-  vec3 position = a_position;
-  u_resolution;
-  u_size;
-  position.xy *= u_size;
-  gl_Position = u_projTrans * u_transform * vec4(position, 1.0);
-  v_uv = a_texCoord0;
+void main() {
+    vec3 position = a_position;
+    u_resolution; // unused
+    position.xy *= u_size;
+    gl_Position = u_projTrans * u_transform * vec4(position, 1.0);
+    v_uv = a_texCoord0;
 }

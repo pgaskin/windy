@@ -12,7 +12,6 @@ import com.badlogic.gdx.backends.android.AndroidLiveWallpaperService;
 import com.badlogic.gdx.backends.android.AndroidWallpaperListener;
 import com.badlogic.gdx.files.FileHandle;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.GL30;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Pixmap;
@@ -42,7 +41,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
         private static final int MIN_PAGES_TO_SWIPE = 4;
         private static final int NUM_TIMES_REDRAW = 240;
-        private final Vector2 PARTICLE_SIZE = new Vector2(1.2f, 1.15f);
+        private final Vector2 SCALE = new Vector2(1.2f, 1.15f); // for page swipe offset parallax
 
         private final Context context;
         private final Config config;
@@ -119,7 +118,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
             WindFieldUpdateService.scheduleNow(context);
 
             // particle system
-            this.particleSystem = new WindyParticles(this.config, PARTICLE_SIZE);
+            this.particleSystem = new WindyParticles(this.config, SCALE);
             this.particleSystem.setVectorField(this.windFieldRegion);
 
             // particle
@@ -153,7 +152,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
             if (DO_SCREENSHOTS) {
                 String path = this.context.getExternalCacheDir() + "/" + WindyWallpaperService.this.getClass().getSimpleName() + ".png";
-                Gdx.gl.glPixelStorei(GL20.GL_PACK_ALIGNMENT, 1);
+                Gdx.gl.glPixelStorei(GL30.GL_PACK_ALIGNMENT, 1);
                 Pixmap scr = new Pixmap(Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), Pixmap.Format.RGBA8888);
                 Gdx.gl.glReadPixels(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight(), GL30.GL_RGBA, GL30.GL_UNSIGNED_BYTE, scr.getPixels());
                 PixmapIO.writePNG(new FileHandle(path), scr);
@@ -186,8 +185,8 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
                 this.trailFbo2.dispose();
             }
 
-            this.trailFbo1 = createCustomFrameBuffer(GL30.GL_RG16F, GL30.GL_RG, GL30.GL_HALF_FLOAT, (int) (w * PARTICLE_SIZE.x), (int) (h * PARTICLE_SIZE.y));
-            this.trailFbo2 = createCustomFrameBuffer(GL30.GL_RG16F, GL30.GL_RG, GL30.GL_HALF_FLOAT, (int) (w * PARTICLE_SIZE.x), (int) (h * PARTICLE_SIZE.y));
+            this.trailFbo1 = createCustomFrameBuffer(GL30.GL_RG16F, GL30.GL_RG, GL30.GL_HALF_FLOAT, (int) (w * SCALE.x), (int) (h * SCALE.y));
+            this.trailFbo2 = createCustomFrameBuffer(GL30.GL_RG16F, GL30.GL_RG, GL30.GL_HALF_FLOAT, (int) (w * SCALE.x), (int) (h * SCALE.y));
             this.trailFbo = this.trailFbo1;
 
             this.trailFbo1.begin();
@@ -258,14 +257,13 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
                     Texture frameBuffer = this.trailFbo.getColorBufferTexture();
                     this.trailFbo = this.trailFbo == this.trailFbo1 ? this.trailFbo2 : this.trailFbo1;
                     this.trailFbo.begin();
-                    Gdx.gl.glEnable(GL30.GL_BLEND);
                     this.trailBatch.disableBlending();
                     this.trailBatch.begin();
                     this.trailShader.setUniformf("u_fadeDecay", this.currentAlphaDecay);
                     this.trailBatch.draw(frameBuffer, 0.0f, 0.0f, frameBuffer.getWidth(), frameBuffer.getHeight(), 0.0f, 0.0f, 1.0f, 1.0f);
                     this.trailBatch.end();
                     Gdx.gl.glEnable(GL30.GL_BLEND);
-                    Gdx.gl.glBlendFunc(GL30.GL_SRC_ALPHA, GL30.GL_ONE_MINUS_SRC_ALPHA);
+                    Gdx.gl.glBlendFunc(GL30.GL_SRC_ALPHA, GL30.GL_ONE_MINUS_SRC_ALPHA); // pre-multiplied alpha
                     this.particleShader.bind();
                     this.particleSystem.getParticlePositions().bind(1);
                     this.particleShader.setUniformi("u_positionTex", 1);
@@ -273,7 +271,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
                     this.particleShader.setUniformMatrix("u_projTrans", this.camera.combined);
                     Gdx.gl.glActiveTexture(GL30.GL_TEXTURE0);
                     this.particleSystem.getParticleIndices().bind(this.particleShader);
-                    Gdx.gl.glDrawArrays(0, 0, this.config.particleCount);
+                    Gdx.gl.glDrawArrays(GL30.GL_POINTS, 0, this.config.particleCount);
                     this.particleSystem.getParticleIndices().unbind(this.particleShader);
                     this.trailFbo.end();
                 }
@@ -282,7 +280,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
                 this.backgroundShader.setUniformf("u_vectorFieldBounds", this.windFieldRegion.getU(), this.windFieldRegion.getV(), this.windFieldRegion.getU2() - this.windFieldRegion.getU(), this.windFieldRegion.getV2() - this.windFieldRegion.getV());
                 this.windFieldTexture.bind(1);
                 this.backgroundShader.setUniformi("u_vectorField", 1);
-                float abs = Math.abs(1.0f - PARTICLE_SIZE.x) * 0.5f;
+                float abs = Math.abs(1.0f - SCALE.x) * 0.5f;
                 this.offsetMatrix.setToRotation(Vector3.Z, (-this.offsetXEased) * (float)(MIN_PAGES_TO_SWIPE));
                 this.offsetMatrix.translate(((-this.offsetXEased) * this.width * abs * 2.0f * 0.7f) + (this.width * abs), 0.0f, 0.0f);
                 this.backgroundShader.setUniformMatrix("u_transform", this.offsetMatrix);
@@ -291,8 +289,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
                 this.backgroundShader.setUniformf("u_backgroundColor2", this.config.bgColor2);
                 this.backgroundShader.setUniformf("u_colorSlow", this.config.slowWindColor);
                 this.backgroundShader.setUniformf("u_colorFast", this.config.fastWindColor);
-                this.backgroundShader.setUniformf("u_fboScale", 1.0f);
-                this.backgroundShader.setUniformf("u_size", PARTICLE_SIZE.x, PARTICLE_SIZE.y);
+                this.backgroundShader.setUniformf("u_size", SCALE.x, SCALE.y);
                 Gdx.gl.glActiveTexture(GL30.GL_TEXTURE0);
                 this.backgroundBatch.draw(this.trailFbo.getColorBufferTexture(), (float)(-this.width) / 2, (float)(-this.height) / 2, this.width, this.height);
                 this.backgroundBatch.end();

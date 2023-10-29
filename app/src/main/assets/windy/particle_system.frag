@@ -28,8 +28,7 @@ vec2 equirectangularToMercator(vec2 uv) {
     return uv;
 }
 
-float rand(vec2 co)
-{
+float rand(vec2 co) {
     float a = 12.9898;
     float b = 78.233;
     float c = 43758.5453;
@@ -48,15 +47,15 @@ vec2 windSpeed(vec2 position) {
 vec2 moveParticle(vec2 position) {
     // Get wind data at specific position
     vec2 wind = windSpeed(position);
-    // Calculate speed based on FPS and uniform var
 
+    // Calculate speed based on FPS and uniform var
     vec2 velocity = wind * u_windSpeed * u_timeDelta * .2;
 
     // Return new position
     return position + velocity;
 }
 
-void main()  {
+void main() {
     vec4 particleData = texture(u_texture, v_uv);
 
     // Calculate 2 points ahead so we can pick a point on a spline

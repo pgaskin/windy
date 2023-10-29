@@ -7,13 +7,11 @@ precision lowp float;
 uniform mat4 u_projTrans;
 uniform sampler2D u_positionTex;
 
-in vec2 a_texCoord0;
 in vec3 a_position;
 
 out vec4 v_color;
 
-float rand(vec2 co)
-{
+float rand(vec2 co) {
     float a = 12.9898;
     float b = 78.233;
     float c = 43758.5453;
@@ -22,7 +20,7 @@ float rand(vec2 co)
     return fract(sin(sn) * c);
 }
 
-void main()  {
+void main() {
     vec4 lookup = texture(u_positionTex, a_position.xy);
     vec2 position = lookup.xy;
 

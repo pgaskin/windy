@@ -4,7 +4,6 @@
 
 precision lowp float;
 
-uniform mat4 u_projTrans;
 uniform sampler2D u_texture;
 uniform float u_fadeDecay;
 
@@ -12,7 +11,7 @@ in vec2 v_uv;
 
 out vec4 fragColor;
 
-void main()  {
+void main() {
     fragColor = texture(u_texture, v_uv);
     fragColor.g *= u_fadeDecay;
 }
