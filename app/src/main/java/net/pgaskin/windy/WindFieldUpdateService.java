@@ -8,6 +8,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Network;
+import android.os.Build;
 import android.util.Log;
 
 import java.net.URL;
@@ -91,7 +92,9 @@ public class WindFieldUpdateService extends JobService {
         Log.i(TAG, "scheduling expedited wind field update");
         try {
             JobInfo.Builder builder = new JobInfo.Builder(JOB_ID_STARTUP, new ComponentName(context, WindFieldUpdateService.class));
-            builder.setExpedited(true);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                builder.setExpedited(true);
+            }
             builder.setEstimatedNetworkBytes(WIND_FIELD_ESTIMATED_SIZE_BYTES, 0);
             builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
             builder.setBackoffCriteria(INITIAL_UPDATE_BACKOFF_MILLIS, UPDATE_BACKOFF_POLICY); // note: capped at 5h; may be longer during doze
