@@ -13,7 +13,10 @@ jobs:
       - uses: actions/setup-go@v3
         with:
           go-version-file: 'go.mod'
-      - run: cargo install --bin gribber --version 0.7.1 grib-cli && gribber --version
+      - uses: baptiste0928/cargo-install@v2
+        with:
+          crate: grib-cli
+          version: 0.7.1
       - run: go test -v ./api
       - run: go vet ./api
       - run: go run ./api -help
