@@ -61,24 +61,6 @@ public class WindField {
         return new File(context.createDeviceProtectedStorageContext().getFilesDir(), "wind_cache.png" + (temp ? ".tmp" : ""));
     }
 
-    /**
-     * Processes and caches a wind image for later use.
-     * <ul>
-     *     <li>Input image: <ul>
-     *         <li>Equirectangular projection (x: -180 to 180, y: 90 to -90).
-     *         <li>Any scale works, but note that the original version was designed for 1440x721 (i.e., .25 lng-lat grid).
-     *         <li>Any image format works, but the original app took a JPEG image.
-     *         <li>The original app's image came from <a href="https://www.gstatic.com/pixel/livewallpaper/windy/gfs_wind_500.jpg">www.gstatic.com/pixel/livewallpaper/windy/gfs_wind_500.jpg</a> (note: gfs_wind_1000 is an identical image), which was last updated 12 Jun 2019 09:47:19 GMT.
-     *         <li>R/G color component is wind direction (unit vector northing/easting components -> 0-1 where 0.5 is zero, and below is -1). If you look at the levels, it should normally be mostly flat, with a spike at the beginning and end.
-     *         <li>B color component is wind speed magnitude (0-1 where 0 is zero and 1 is some arbitrary maximum, probably around 30-40 m/s). If you look at the levels, it should normally look like a normal distribution on the lower part.
-     *     </ul>
-     *     <li>Processing: <ul>
-     *         <li>Downscale to 1/4 of the size (bilinear).
-     *         <li>Gaussian blur horizontal/vertical with kernel size 5 and sigma 1.
-     *         <li>This all has the effect of smoothing out sharper turns and removing very fine details from the wallpaper (TODO: it might be nice to have an option to keep this detail, since it looks interesting in itself)
-     *     </ul>
-     * </ul>
-     */
     public static void updateCache(Context context, InputStream src) throws Exception {
         Log.i(TAG, "updating cached field pixmap");
 
