@@ -7,11 +7,14 @@ import android.app.job.JobService;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
 import android.net.Network;
+import android.net.NetworkCapabilities;
 import android.os.Build;
 import android.util.Log;
 
 import java.net.URL;
+import java.net.UnknownHostException;
 
 import javax.net.ssl.HttpsURLConnection;
 
@@ -38,7 +41,22 @@ public class WindFieldUpdateService extends JobService {
                     throw new Exception("no network for job");
                 }
 
-                HttpsURLConnection conn = (HttpsURLConnection) net.openConnection(new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_field.jpg"));
+                NetworkCapabilities cap = this.getSystemService(ConnectivityManager.class).getNetworkCapabilities(net);
+                URL url = new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_field.jpg");
+                Log.i(TAG, "updating wind field from " + url + " using network " + net + " with capabilities " + cap);
+
+                if (!cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
+                    Log.i(TAG, "network for job is a VPN, seeing if we need to work around connectivity bugs");
+                    try {
+                        net.getAllByName(url.getHost());
+                        Log.d(TAG, "nope, everything works fine");
+                    } catch (UnknownHostException ex) {
+                        net = null;
+                        Log.w(TAG, "WORKAROUND: no connectivity on VPN (" + ex + "), not explicitly using network (will let the system decide)...");
+                    }
+                }
+
+                HttpsURLConnection conn = (HttpsURLConnection) (net != null ? net.openConnection(url) : url.openConnection());
                 conn.setRequestProperty("User-Agent", "WindyLiveWallpaper/" + BuildConfig.VERSION_NAME + " (" + BuildConfig.APPLICATION_ID + " " + BuildConfig.VERSION_CODE + "; " + BuildConfig.BUILD_TYPE + "; job:" + why + ") " + System.getProperty("http.agent"));
 
                 String etag = getPreferences(this).getString("etag", null);
