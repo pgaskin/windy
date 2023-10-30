@@ -623,6 +623,9 @@ func gribValues(ctx context.Context, gribber string, data []byte, fn func(lat, l
 	if err := sc.Err(); err != nil {
 		return fmt.Errorf("%w (stderr: %q)", err, stderr.String())
 	}
+	if err := cmd.Wait(); err != nil {
+		return fmt.Errorf("%w (stderr: %q)", err, stderr.String())
+	}
 	if i == 0 {
 		return fmt.Errorf("no data returned (stderr: %q)", stderr.String())
 	}
