@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Windy Live Wallpaper Extended"
+rootProject.name = "Windy Live Wallpaper"
 include ':app'
