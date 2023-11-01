@@ -1,17 +1,39 @@
 package net.pgaskin.windy;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.PowerManager;
+import android.util.Log;
 import com.badlogic.gdx.Application;
 import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
 import com.badlogic.gdx.backends.android.AndroidLiveWallpaperService;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Vector2;
 
-public abstract class WindyWallpaperService extends AndroidLiveWallpaperService {
-    private WindyWallpaper windy;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+public abstract class WindyWallpaperService extends AndroidLiveWallpaperService implements WindyWallpaper.Provider {
+    private static final String TAG = "WindyWallpaperService";
     protected final WindyWallpaper.Config config = new WindyWallpaper.Config();
 
-    @Override // AndroidLiveWallpaperService
+    private final AtomicBoolean isPowerSaveMode = new AtomicBoolean();
+    private final BroadcastReceiver powerSaveReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final PowerManager powerManager = (PowerManager) WindyWallpaperService.this.getSystemService(Context.POWER_SERVICE);
+            final boolean enabled = powerManager.isPowerSaveMode();
+            Log.d(TAG, "got power saving mode update (enabled: " + enabled + ")");
+            isPowerSaveMode.set(enabled);
+        }
+    };
+
+    @Override
     public void onCreateApplication() {
-        WindFieldUpdateService.schedulePeriodic(this);
+        super.onCreateApplication();
+        app.setLogLevel(Application.LOG_INFO);
 
         final AndroidApplicationConfiguration cfg = new AndroidApplicationConfiguration();
         cfg.useAccelerometer = false;
@@ -21,20 +43,47 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         cfg.r = cfg.g = cfg.b = cfg.a = 8;
         cfg.depth = 16;
 
-        super.onCreateApplication();
-        this.app.setLogLevel(Application.LOG_INFO);
+        WindFieldUpdateService.scheduleStartup(this);
+        WindFieldUpdateService.schedulePeriodic(this);
 
-        this.windy = new WindyWallpaper(this, this.config);
-        this.initialize(windy, cfg);
+        registerReceiver(powerSaveReceiver, new IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED));
+
+        initialize(new WindyWallpaper(config, this), cfg);
     }
 
     @Override
     public void onDestroy() {
-        if (this.windy != null) {
-            // this doesn't seem to get called properly by GDX unless we do this...
-            this.windy.pause();
-        }
         super.onDestroy();
+        unregisterReceiver(powerSaveReceiver);
+    }
+
+    @Override
+    public Windy.PowerSaveModeProvider createPowerSaveModeProvider() {
+        return isPowerSaveMode::get;
+    }
+
+    @Override
+    public Windy.UserLocationProvider createUserLocationProvider() {
+        return requestIfMissing -> LocationActivity.updateLocation(this, requestIfMissing);
+    }
+
+    @Override
+    public Windy.WindFieldProvider createWindFieldProvider() {
+        return new Windy.WindFieldProvider() {
+            private Texture windField;
+            private int windFieldSeq;
+
+            @Override
+            public Texture swapTexture(Texture old) {
+                if (old != null && old != windField) throw new IllegalStateException("WindFieldProvider was given wrong texture");
+                if (old != null && windFieldSeq == WindField.currentSeq()) return null;
+                if (old != null) old.dispose();
+                Log.d(TAG, "applying wind field texture");
+                windFieldSeq = WindField.currentSeq();
+                windField = WindField.createTexture(WindyWallpaperService.this);
+                return windField;
+            }
+        };
     }
 
     public static class Blue extends WindyWallpaperService {
