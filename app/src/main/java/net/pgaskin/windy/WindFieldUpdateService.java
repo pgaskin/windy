@@ -26,7 +26,7 @@ public class WindFieldUpdateService extends JobService {
 
     @Override
     public boolean onStartJob(JobParameters params) {
-        String why = describeJob(params.getJobId());
+        final String why = describeJob(params.getJobId());
         if (why == null) {
             Log.i(TAG, "unknown job id (it might be old), canceling job");
             this.getSystemService(JobScheduler.class).cancel(params.getJobId());
@@ -41,8 +41,8 @@ public class WindFieldUpdateService extends JobService {
                     throw new Exception("no network for job");
                 }
 
-                NetworkCapabilities cap = this.getSystemService(ConnectivityManager.class).getNetworkCapabilities(net);
-                URL url = new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_field.jpg");
+                final NetworkCapabilities cap = this.getSystemService(ConnectivityManager.class).getNetworkCapabilities(net);
+                final URL url = new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_field.jpg");
                 Log.i(TAG, "updating wind field from " + url + " using network " + net + " with capabilities " + cap);
 
                 if (!cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
@@ -56,7 +56,7 @@ public class WindFieldUpdateService extends JobService {
                     }
                 }
 
-                HttpsURLConnection conn = (HttpsURLConnection) (net != null ? net.openConnection(url) : url.openConnection());
+                final HttpsURLConnection conn = (HttpsURLConnection) (net != null ? net.openConnection(url) : url.openConnection());
                 conn.setRequestProperty("User-Agent", "WindyLiveWallpaper/" + BuildConfig.VERSION_NAME + " (" + BuildConfig.APPLICATION_ID + " " + BuildConfig.VERSION_CODE + "; " + BuildConfig.BUILD_TYPE + "; job:" + why + ") " + System.getProperty("http.agent"));
 
                 String etag = getPreferences(this).getString("etag", null);
@@ -66,7 +66,7 @@ public class WindFieldUpdateService extends JobService {
 
                 conn.connect();
 
-                int status = conn.getResponseCode();
+                final int status = conn.getResponseCode();
                 if (status != 200 && status != 304) {
                     throw new Exception("response status " + status + " (" + conn.getResponseMessage() + ")");
                 }
@@ -113,7 +113,7 @@ public class WindFieldUpdateService extends JobService {
     }
 
     public static boolean scheduleStartup(Context context) {
-        long last = getPreferences(context).getLong("last_expedited_update", 0);
+        final long last = getPreferences(context).getLong("last_expedited_update", 0);
         if (Math.abs(System.currentTimeMillis() - last) < BuildConfig.WIND_FIELD_UPDATE_INTERVAL_MINIMUM * 60 * 1000) {
             Log.w(TAG, "not scheduling requested expedited wind field update since last one was scheduled very recently");
             return false;
@@ -129,7 +129,7 @@ public class WindFieldUpdateService extends JobService {
     private static boolean schedule(Context context, int jobID) {
         Log.i(TAG, "scheduling wind field update job (type: " + describeJob(jobID) + ")");
         try {
-            JobInfo.Builder builder = new JobInfo.Builder(jobID, new ComponentName(context, WindFieldUpdateService.class));
+            final JobInfo.Builder builder = new JobInfo.Builder(jobID, new ComponentName(context, WindFieldUpdateService.class));
             switch (jobID) {
                 case JOB_ID_PERIODIC:
                     builder.setPeriodic(BuildConfig.WIND_FIELD_UPDATE_INTERVAL * 60 * 1000, BuildConfig.WIND_FIELD_UPDATE_INTERVAL * 60 * 1000 / 4);
@@ -147,7 +147,7 @@ public class WindFieldUpdateService extends JobService {
             builder.setEstimatedNetworkBytes(BuildConfig.WIND_FIELD_SIZE_ESTIMATED * 1000, 0);
             builder.setBackoffCriteria(BuildConfig.WIND_FIELD_UPDATE_INTERVAL_MINIMUM * 60 * 1000, JobInfo.BACKOFF_POLICY_EXPONENTIAL);
 
-            JobScheduler scheduler = context.getSystemService(JobScheduler.class);
+            final JobScheduler scheduler = context.getSystemService(JobScheduler.class);
             if (scheduler.schedule(builder.build()) != JobScheduler.RESULT_SUCCESS) {
                 throw new RuntimeException("Job scheduler rejected job");
             }

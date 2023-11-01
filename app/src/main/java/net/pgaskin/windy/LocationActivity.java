@@ -146,12 +146,12 @@ public class LocationActivity extends Activity {
                 context.startActivity(intent);
             }
         } else {
-            LocationManager mgr = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-            Location loc = mgr.getLastKnownLocation("passive");
+            final LocationManager mgr = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
+            final Location loc = mgr.getLastKnownLocation("passive");
             if (loc != null) {
-                SharedPreferences prefs = LocationActivity.getPreferences(context);
-                float lat = (float) Math.round(loc.getLatitude() * 10.0f) / 10.0f;
-                float lng = (float) Math.round(loc.getLongitude() * 10.0f) / 10.0f;
+                final SharedPreferences prefs = LocationActivity.getPreferences(context);
+                final float lat = (float) Math.round(loc.getLatitude() * 10.0f) / 10.0f;
+                final float lng = (float) Math.round(loc.getLongitude() * 10.0f) / 10.0f;
                 Log.i(TAG, "updated user location lng=" + lng + " lat=" + lat);
                 prefs.edit().putFloat("last_lng", lng).putFloat("last_lat", lat).apply();
                 return new Vector2(lng, lat);
@@ -159,9 +159,9 @@ public class LocationActivity extends Activity {
                 Log.w(TAG, "failed to update user location");
             }
         }
-        SharedPreferences prefs = LocationActivity.getPreferences(context);
-        float lng = prefs.getFloat("last_lng", 0.0f);
-        float lat = prefs.getFloat("last_lat", 0.0f);
+        final SharedPreferences prefs = LocationActivity.getPreferences(context);
+        final float lng = prefs.getFloat("last_lng", 0.0f);
+        final float lat = prefs.getFloat("last_lat", 0.0f);
         if (lng != 0.0f || lat != 0.0f) {
             Log.i(TAG, "using last known location lng=" + lng + " lat=" + lat);
             return new Vector2(lng, lat);

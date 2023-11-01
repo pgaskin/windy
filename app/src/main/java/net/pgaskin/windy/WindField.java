@@ -32,7 +32,7 @@ public class WindField {
         synchronized (currentBitmapLock) {
             if (currentBitmap == null) {
                 Log.i(TAG, "loading initial wind field bitmap");
-                try (InputStream is = Files.newInputStream(windCacheFile(context, false).toPath())) {
+                try (final InputStream is = Files.newInputStream(windCacheFile(context, false).toPath())) {
                     if ((currentBitmap = BitmapFactory.decodeStream(is)) == null) {
                         throw new Exception("Failed to decode cached wind field bitmap");
                     }
@@ -40,7 +40,7 @@ public class WindField {
                     // ignored
                 }
                 if (currentBitmap == null) {
-                    try (InputStream is = context.getAssets().open("windy/wind_cache.png")) {
+                    try (final InputStream is = context.getAssets().open("windy/wind_cache.png")) {
                         if ((currentBitmap = BitmapFactory.decodeStream(is)) == null) {
                             throw new Exception("Failed to decode embedded wind field bitmap");
                         }
@@ -49,7 +49,7 @@ public class WindField {
                     }
                 }
             }
-            Texture tex = new Texture(currentBitmap.getWidth(), currentBitmap.getHeight(), Pixmap.Format.RGBA8888);
+            final Texture tex = new Texture(currentBitmap.getWidth(), currentBitmap.getHeight(), Pixmap.Format.RGBA8888);
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, tex.getTextureObjectHandle());
             GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, currentBitmap, 0);
             GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0);
@@ -64,7 +64,7 @@ public class WindField {
     public static void updateCache(Context context, InputStream src) throws Exception {
         Log.i(TAG, "updating cached field pixmap");
 
-        BitmapFactory.Options cfg = new BitmapFactory.Options();
+        final BitmapFactory.Options cfg = new BitmapFactory.Options();
         cfg.inPreferredConfig = Bitmap.Config.ARGB_8888;
         Bitmap img = BitmapFactory.decodeStream(src, null, cfg);
         if (img == null) {
@@ -77,7 +77,7 @@ public class WindField {
         img = Bitmap.createScaledBitmap(img, img.getWidth() / 4, img.getHeight() / 4, true);
         img = blur(img);
 
-        try (FileOutputStream tmp = new FileOutputStream(windCacheFile(context, true))) {
+        try (final FileOutputStream tmp = new FileOutputStream(windCacheFile(context, true))) {
             if (!img.compress(Bitmap.CompressFormat.PNG, 100, tmp)) {
                 throw new Exception("Failed to encode scaled bitmap");
             }
@@ -94,10 +94,10 @@ public class WindField {
     }
 
     private static Bitmap blur(Bitmap src) {
-        int w = src.getWidth();
-        int h = src.getHeight();
-        int[] a = new int[w*h];
-        int[] b = new int[w*h];
+        final int w = src.getWidth();
+        final int h = src.getHeight();
+        final int[] a = new int[w*h];
+        final int[] b = new int[w*h];
         src.getPixels(a, 0, w, 0, 0, w, h); // ARGB8888
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
