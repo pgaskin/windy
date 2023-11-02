@@ -20,12 +20,16 @@ The shaders are based on the official Pixel windy live wallpaper, but this has:
 
 <table><tbody><tr>
 <td><img src="app/src/main/res/drawable/windy_blue.jpg"></td>
+<td><img src="app/src/main/res/drawable/windy_green.jpg"></td>
 <td><img src="app/src/main/res/drawable/windy_blush.jpg"></td>
 <td><img src="app/src/main/res/drawable/windy_maroon.jpg"></td>
 <td><img src="app/src/main/res/drawable/windy_midnight.jpg"></td>
+</tr><tr>
+<td><img src="app/src/main/res/drawable/windy_sepia.jpg"></td>
 <td><img src="app/src/main/res/drawable/windy_skybluewhirled.jpg"></td>
 <td><img src="app/src/main/res/drawable/windy_sunsetwhirled.jpg"></td>
 <td><img src="app/src/main/res/drawable/windy_turquoisewhirled.jpg"></td>
+<td><img src="app/src/main/res/drawable/windy_sparkwhirled.jpg"></td>
 </tr></tbody></table>
 
 #### Wind field images

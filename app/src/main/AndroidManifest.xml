@@ -42,6 +42,21 @@
         </service>
 
         <service
+            android:name="net.pgaskin.windy.WindyWallpaperService$Green"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Windy, Green"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_green" />
+        </service>
+
+        <service
             android:name="net.pgaskin.windy.WindyWallpaperService$Blush"
             android:directBootAware="true"
             android:enabled="true"
@@ -87,6 +102,21 @@
         </service>
 
         <service
+            android:name="net.pgaskin.windy.WindyWallpaperService$Sepia"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Windy, Sepia"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_sepia" />
+        </service>
+
+        <service
             android:name="net.pgaskin.windy.WindyWallpaperService$SunsetWhirled"
             android:directBootAware="true"
             android:enabled="true"
@@ -129,6 +159,21 @@
             <meta-data
                 android:name="android.service.wallpaper"
                 android:resource="@xml/windy_skybluewhirled" />
+        </service>
+
+        <service
+            android:name="net.pgaskin.windy.WindyWallpaperService$SparkWhirled"
+            android:directBootAware="true"
+            android:enabled="true"
+            android:exported="true"
+            android:label="Your whirled, Spark"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/windy_sparkwhirled" />
         </service>
 
     </application>

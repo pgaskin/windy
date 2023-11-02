@@ -95,6 +95,16 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         }
     }
 
+    public static class Green extends WindyWallpaperService {
+        public Green() {
+            config.slowWindColor = new Color(0.50f, 0.82f, 0.18f, 0.30f);
+            config.fastWindColor = new Color(0.98f, 0.94f, 0.12f, 0.25f);
+            config.bgColor = new Color(0x044822FF);
+            config.bgColor2 = new Color(0x008533FF);
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x085112FF);
+        }
+    }
+
     public static class Blush extends WindyWallpaperService {
         public Blush() {
             config.slowWindColor = new Color(0.8509804f, 0.6901961f, 0.91764706f, 0.30f);
@@ -125,11 +135,21 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
         }
     }
 
+    public static class Sepia extends WindyWallpaperService {
+        public Sepia() {
+            config.slowWindColor = new Color(0.26f, 0.16f, 0.05f, 0.25f);
+            config.fastWindColor = new Color(0.44f, 0.28f, 0.11f, 0.30f);
+            config.bgColor = new Color(0xBDA682FF);
+            config.bgColor2 = new Color(0xC49F64FF);
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0xD87900FF);
+        }
+    }
+
     public static class SunsetWhirled extends WindyWallpaperService {
         public SunsetWhirled() {
             config.slowWindColor = new Color(0.9764706f, 0.8627451f, 0.64705884f, 0.60f);
             config.fastWindColor = new Color(1.0000000f, 1.0000000f, 1.00000000f, 0.70f);
-            config.bgColor = new Color(0xE58186Df);
+            config.bgColor = new Color(0xE58186DF);
             config.bgColor2 = new Color(0xF7B38DDF);
             config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0xE88991FF);
         }
@@ -152,6 +172,16 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
             config.bgColor = new Color(0x75AAFAFF);
             config.bgColor2 = new Color(0xF4FF87FF);
             config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x7BAEF5FF);
+        }
+    }
+
+    public static class SparkWhirled extends WindyWallpaperService {
+        public SparkWhirled() {
+            config.slowWindColor = new Color(0.25f, 0.00f, 0.50f, 0.85f);
+            config.fastWindColor = new Color(1.00f, 0.50f, 0.00f, 0.65f);
+            config.bgColor = new Color(0x270D03FF);
+            config.bgColor2 = new Color(0x031A27FF);
+            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x96241AFF);
         }
     }
 }

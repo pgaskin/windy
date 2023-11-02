@@ -43,9 +43,9 @@ public class WindyWallpaper implements ApplicationListener, AndroidWallpaperList
         windy = new Windy(config, provider.createPowerSaveModeProvider(), provider.createUserLocationProvider(), provider.createWindFieldProvider());
 
         // this breaks encapsulation, but it's for testing only, so whatever
-        // note: generate previews with something like: for x in Android/data/net.pgaskin.windy/cache/*.png; do base=${x%%.png}; convert $x -alpha off -crop 540x960+512+256 app/src/main/res/drawable/windy_${base,,}.jpg; done
+        // note: generate previews with something like: for x in *.png; do base=${x%%.png}; convert $x -crop 960x960+0+600 -quality 80 ../app/src/main/res/drawable/windy_${base,,}.jpg; done
         if (BuildConfig.SAVE_SCREENSHOTS) {
-            windy.render();
+            for (int x = 0; x < 100; x++) windy.render();
             final Pixmap pixmap = Pixmap.createFromFrameBuffer(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
             final ByteBuffer pixels = pixmap.getPixels();
             final int size = Gdx.graphics.getBackBufferWidth() * Gdx.graphics.getBackBufferHeight() * 4;
