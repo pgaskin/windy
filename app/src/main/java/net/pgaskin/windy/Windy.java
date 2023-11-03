@@ -1,8 +1,9 @@
 package net.pgaskin.windy;
 
+import android.opengl.Matrix;
+import android.util.Log;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -249,7 +250,10 @@ public final class Windy implements Disposable {
             this.width = width;
             this.height = height;
 
-            batch.getProjectionMatrix().setToOrtho2D(0, 0, width, height).translate(width / 2f, height / 2f, 0);
+            float[] mt = new float[16];
+            Matrix.orthoM(mt, 0, 0, width, 0, height, 0, 1);
+            Matrix.translateM(mt, 0, width/2f, height/2f, 0);
+            batch.getProjectionMatrix().set(mt);
         }
 
         public void render(TextureRegion windField, Streamlines streamlines, float offsetX) {
@@ -286,7 +290,7 @@ public final class Windy implements Disposable {
         private final ShaderProgram particleShader;
         private final ShaderProgram trailShader;
         private final SpriteBatch trailBatch;
-        private final OrthographicCamera camera;
+        private final Matrix4 matProjTrans;
         private FrameBuffer trailFbo, trailFboPing, trailFboPong;
         private float currentAlphaDecay;
 
@@ -295,9 +299,9 @@ public final class Windy implements Disposable {
 
             currentAlphaDecay = config.alphaDecay;
 
-            camera = new OrthographicCamera(1.0f, 1.0f);
-            camera.translate(0.5f, 0.5f);
-            camera.update();
+            float[] mt = new float[16];
+            Matrix.orthoM(mt, 0, 0, 1, 0, 1, 0, 1);
+            matProjTrans = new Matrix4(mt);
 
             particleShader = new ShaderProgram(Gdx.files.internal("windy/particle.vert"), Gdx.files.internal("windy/particle.frag"));
             if (!particleShader.isCompiled()) throw new GdxRuntimeException(particleShader.getLog());
@@ -333,7 +337,9 @@ public final class Windy implements Disposable {
             Gdx.gl.glClear(Gdx.gl.GL_COLOR_BUFFER_BIT | Gdx.gl.GL_DEPTH_BUFFER_BIT);
             trailFboPong.end();
 
-            trailBatch.getProjectionMatrix().setToOrtho2D(0, 0, trailFbo.getWidth(), trailFbo.getHeight());
+            float[] mt = new float[16];
+            Matrix.orthoM(mt, 0, 0, trailFbo.getWidth(), 0, trailFbo.getHeight(), 0, 1);
+            trailBatch.getProjectionMatrix().set(mt);
         }
 
         public void render(Particles particles) {
@@ -353,7 +359,7 @@ public final class Windy implements Disposable {
             particleShader.bind();
             particleShader.setUniformi("u_positionTex", 1);
             particleShader.setUniformf("u_particleOpacity", config.particleOpacity);
-            particleShader.setUniformMatrix("u_projTrans", camera.combined);
+            particleShader.setUniformMatrix("u_projTrans", matProjTrans);
             particles.getTexture().bind(1);
             Gdx.gl.glActiveTexture(Gdx.gl.GL_TEXTURE0);
             particles.getVbo().bind(particleShader);
@@ -428,7 +434,9 @@ public final class Windy implements Disposable {
             if (!shader.isCompiled()) throw new GdxRuntimeException(shader.getLog());
 
             batch = new SpriteBatch(1);
-            batch.getProjectionMatrix().setToOrtho(0, dim, dim, 0, 0, 10);
+            float[] mt = new float[16];
+            Matrix.orthoM(mt, 0, 0, dim, dim, 0, 0, 1);
+            batch.getProjectionMatrix().set(mt);
             batch.setShader(shader);
         }
 
