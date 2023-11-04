@@ -32,11 +32,13 @@ public class LocationActivity extends Activity {
     }
 
     @Override
-    protected void onRestoreInstanceState(Bundle s) {
-        this.requestedInitial = s.getBoolean("requestedInitial");
-        this.doneForeground = s.getBoolean("doneForeground");
-        this.doneBackground = s.getBoolean("doneBackground");
-        super.onRestoreInstanceState(s);
+    protected void onCreate(Bundle s) {
+        if (s != null) {
+            this.requestedInitial = s.getBoolean("requestedInitial");
+            this.doneForeground = s.getBoolean("doneForeground");
+            this.doneBackground = s.getBoolean("doneBackground");
+        }
+        super.onCreate(s);
     }
 
     @Override
