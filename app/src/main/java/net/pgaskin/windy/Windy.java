@@ -1,9 +1,9 @@
 package net.pgaskin.windy;
 
-import android.opengl.Matrix;
 import android.util.Log;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.Color;
+import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.VertexAttribute;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
@@ -19,6 +19,10 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Disposable;
 import com.badlogic.gdx.utils.GdxRuntimeException;
 import com.badlogic.gdx.utils.TimeUtils;
+
+import android.opengl.GLES30;
+import static android.opengl.Matrix.*;
+import static android.opengl.GLES20.*;
 
 public final class Windy implements Disposable {
     private static final int BINNING_CONTROL_HINT_QCOM = 0x8FB0;
@@ -251,8 +255,8 @@ public final class Windy implements Disposable {
             this.height = height;
 
             float[] mt = new float[16];
-            Matrix.orthoM(mt, 0, 0, width, 0, height, 0, 1);
-            Matrix.translateM(mt, 0, width/2f, height/2f, 0);
+            orthoM(mt, 0, 0, width, 0, height, 0, 1);
+            translateM(mt, 0, width/2f, height/2f, 0);
             batch.getProjectionMatrix().set(mt);
         }
 
@@ -263,17 +267,18 @@ public final class Windy implements Disposable {
 
             batch.disableBlending();
             batch.begin();
-            shader.setUniformi("u_vectorField", 1);
-            shader.setUniformf("u_vectorFieldBounds", windField.getU(), windField.getV(), windField.getU2() - windField.getU(), windField.getV2() - windField.getV());
-            shader.setUniformMatrix("u_transform", offsetMatrix);
-            shader.setUniformf("u_resolution", width, height);
-            shader.setUniformf("u_backgroundColor1", config.bgColor);
-            shader.setUniformf("u_backgroundColor2", config.bgColor2);
-            shader.setUniformf("u_colorSlow", config.slowWindColor);
-            shader.setUniformf("u_colorFast", config.fastWindColor);
-            shader.setUniformf("u_size", config.scale.x, config.scale.y);
-            windField.getTexture().bind(1);
-            Gdx.gl.glActiveTexture(Gdx.gl.GL_TEXTURE0);
+            glUniform1i(shader.fetchUniformLocation("u_vectorField", true), 1);
+            glUniform4f(shader.fetchUniformLocation("u_vectorFieldBounds", true), windField.getU(), windField.getV(), windField.getU2() - windField.getU(), windField.getV2() - windField.getV());
+            glUniformMatrix4fv(shader.fetchUniformLocation("u_transform", true), 0, false, offsetMatrix.val, 0);
+            glUniform2f(shader.fetchUniformLocation("u_resolution", true), width, height);
+            glUniform4f(shader.fetchUniformLocation("u_backgroundColor1", true), config.bgColor.r, config.bgColor.g, config.bgColor.b, config.bgColor.a);
+            glUniform4f(shader.fetchUniformLocation("u_backgroundColor2", true), config.bgColor2.r, config.bgColor2.g, config.bgColor2.b, config.bgColor2.a);
+            glUniform4f(shader.fetchUniformLocation("u_colorSlow", true), config.slowWindColor.r, config.slowWindColor.g, config.slowWindColor.b, config.slowWindColor.a);
+            glUniform4f(shader.fetchUniformLocation("u_colorFast", true), config.fastWindColor.r, config.fastWindColor.g, config.fastWindColor.b, config.fastWindColor.a);
+            glUniform2f(shader.fetchUniformLocation("u_size", true), config.scale.x, config.scale.y);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, windField.getTexture().getTextureObjectHandle());
+            glActiveTexture(GL_TEXTURE0);
             batch.draw(streamlines.getTexture(), -width / 2f, -height / 2f, width, height);
             batch.end();
         }
@@ -300,7 +305,7 @@ public final class Windy implements Disposable {
             currentAlphaDecay = config.alphaDecay;
 
             float[] mt = new float[16];
-            Matrix.orthoM(mt, 0, 0, 1, 0, 1, 0, 1);
+            orthoM(mt, 0, 0, 1, 0, 1, 0, 1);
             matProjTrans = new Matrix4(mt);
 
             particleShader = new ShaderProgram(Gdx.files.internal("windy/particle.vert"), Gdx.files.internal("windy/particle.frag"));
@@ -328,17 +333,17 @@ public final class Windy implements Disposable {
             trailFbo = trailFboPing;
 
             trailFboPing.begin();
-            Gdx.gl.glClearColor(0, 0, 0, 0);
-            Gdx.gl.glClear(Gdx.gl.GL_COLOR_BUFFER_BIT | Gdx.gl.GL_DEPTH_BUFFER_BIT);
+            glClearColor(0, 0, 0, 0);
+            glClear(Gdx.gl.GL_COLOR_BUFFER_BIT | Gdx.gl.GL_DEPTH_BUFFER_BIT);
             trailFboPing.end();
 
             trailFboPong.begin();
-            Gdx.gl.glClearColor(0, 0, 0, 0);
-            Gdx.gl.glClear(Gdx.gl.GL_COLOR_BUFFER_BIT | Gdx.gl.GL_DEPTH_BUFFER_BIT);
+            glClearColor(0, 0, 0, 0);
+            glClear(Gdx.gl.GL_COLOR_BUFFER_BIT | Gdx.gl.GL_DEPTH_BUFFER_BIT);
             trailFboPong.end();
 
             float[] mt = new float[16];
-            Matrix.orthoM(mt, 0, 0, trailFbo.getWidth(), 0, trailFbo.getHeight(), 0, 1);
+            orthoM(mt, 0, 0, trailFbo.getWidth(), 0, trailFbo.getHeight(), 0, 1);
             trailBatch.getProjectionMatrix().set(mt);
         }
 
@@ -350,20 +355,21 @@ public final class Windy implements Disposable {
 
             trailBatch.disableBlending();
             trailBatch.begin();
-            trailShader.setUniformf("u_fadeDecay", currentAlphaDecay);
+            glUniform1f(trailShader.fetchUniformLocation("u_fadeDecay", true), currentAlphaDecay);
             trailBatch.draw(trailFboIn.getColorBufferTexture(), 0, 0, trailFboIn.getWidth(), trailFboIn.getHeight(), 0, 0, 1, 1);
             trailBatch.end();
 
-            Gdx.gl.glEnable(Gdx.gl.GL_BLEND);
-            Gdx.gl.glBlendFunc(Gdx.gl.GL_SRC_ALPHA, Gdx.gl.GL_ONE_MINUS_SRC_ALPHA); // pre-multiplied alpha
+            glEnable(Gdx.gl.GL_BLEND);
+            glBlendFunc(Gdx.gl.GL_SRC_ALPHA, Gdx.gl.GL_ONE_MINUS_SRC_ALPHA); // pre-multiplied alpha
             particleShader.bind();
-            particleShader.setUniformi("u_positionTex", 1);
-            particleShader.setUniformf("u_particleOpacity", config.particleOpacity);
-            particleShader.setUniformMatrix("u_projTrans", matProjTrans);
-            particles.getTexture().bind(1);
-            Gdx.gl.glActiveTexture(Gdx.gl.GL_TEXTURE0);
+            glUniform1i(particleShader.fetchUniformLocation("u_positionTex", true), 1);
+            glUniform1f(particleShader.fetchUniformLocation("u_particleOpacity", true), config.particleOpacity);
+            glUniformMatrix4fv(particleShader.fetchUniformLocation("u_projTrans", true), 0, false, matProjTrans.val, 0);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, particles.getTexture().getTextureObjectHandle());
+            glActiveTexture(GL_TEXTURE0);
             particles.getVbo().bind(particleShader);
-            Gdx.gl.glDrawArrays(Gdx.gl.GL_POINTS, 0, config.particleCount);
+            glDrawArrays(Gdx.gl.GL_POINTS, 0, config.particleCount);
             particles.getVbo().unbind(particleShader);
 
             trailFbo.end();
@@ -435,7 +441,7 @@ public final class Windy implements Disposable {
 
             batch = new SpriteBatch(1);
             float[] mt = new float[16];
-            Matrix.orthoM(mt, 0, 0, dim, dim, 0, 0, 1);
+            orthoM(mt, 0, 0, dim, dim, 0, 0, 1);
             batch.getProjectionMatrix().set(mt);
             batch.setShader(shader);
         }
@@ -452,21 +458,24 @@ public final class Windy implements Disposable {
             final FrameBuffer fboIn = fbo;
             fbo = fbo == fboPing ? fboPong : fboPing;
 
-            fbo.begin();
+            glBindFramebuffer(GL_FRAMEBUFFER, fbo.getFramebufferHandle());
+            glViewport(0, 0, fbo.getWidth(), fbo.getHeight());
             batch.begin();
-            vectorField.getTexture().bind(1);
-            shader.setUniformi("u_vectorField", 1);
-            shader.setUniformf("u_timeAcc", timeAcc);
-            shader.setUniformf("u_timeDelta", timeDelta);
-            shader.setUniformf("u_resolution", (float) height / (float) width, 1);
-            shader.setUniformf("u_size", config.scale.x, config.scale.y);
-            shader.setUniformf("u_windSpeed", config.windSpeed);
-            shader.setUniformf("u_particleLife", config.particleLife);
-            shader.setUniformf("u_vectorFieldBounds", vectorField.getU(), vectorField.getV(), vectorField.getU2() - vectorField.getU(), vectorField.getV2() - vectorField.getV());
-            Gdx.gl.glActiveTexture(Gdx.gl.GL_TEXTURE0);
+            glUniform1i(shader.fetchUniformLocation("u_vectorField", true), 1);
+            glUniform1f(shader.fetchUniformLocation("u_timeAcc", true), timeAcc);
+            glUniform1f(shader.fetchUniformLocation("u_timeDelta", true), timeDelta);
+            glUniform2f(shader.fetchUniformLocation("u_resolution", true), (float) height / (float) width, 1);
+            glUniform2f(shader.fetchUniformLocation("u_size", true), config.scale.x, config.scale.y);
+            glUniform1f(shader.fetchUniformLocation("u_windSpeed", true), config.windSpeed);
+            glUniform1f(shader.fetchUniformLocation("u_particleLife", true), config.particleLife);
+            glUniform4f(shader.fetchUniformLocation("u_vectorFieldBounds", true), vectorField.getU(), vectorField.getV(), vectorField.getU2() - vectorField.getU(), vectorField.getV2() - vectorField.getV());
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, vectorField.getTexture().getTextureObjectHandle());
+            glActiveTexture(GL_TEXTURE0);
             batch.draw(fboIn.getColorBufferTexture(), 0, 0);
             batch.end();
-            fbo.end();
+            glBindFramebuffer(GL20.GL_FRAMEBUFFER, 0);
+            glViewport(0, 0, Gdx.graphics.getBackBufferWidth(), Gdx.graphics.getBackBufferHeight());
         }
 
         @Override
