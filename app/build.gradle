@@ -10,8 +10,8 @@ android {
         applicationId "net.pgaskin.windy"
         minSdk 30
         targetSdk 33
-        versionCode 3
-        versionName "3"
+        versionCode 4
+        versionName "4"
 
         buildConfigField "String", "WIND_FIELD_API_HOST", "\"windy.api.pgaskin.net\""
         buildConfigField "long", "WIND_FIELD_SIZE_ESTIMATED", "1500" // kB
