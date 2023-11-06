@@ -11,6 +11,7 @@ import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
 import com.badlogic.gdx.backends.android.AndroidLiveWallpaperService;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.Texture;
+import com.badlogic.gdx.math.Vector2;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -63,7 +64,17 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
     @Override
     public Windy.UserLocationProvider createUserLocationProvider() {
-        return requestIfMissing -> LocationActivity.updateLocation(this, requestIfMissing);
+        return new Windy.UserLocationProvider() {
+            private Vector2 location;
+            private boolean locationFlowPending = !LocationActivity.getLocationFlowCompleteCached();
+
+            @Override
+            public Vector2 getLocation(boolean requestIfMissing, boolean cachedOnly) {
+                if (locationFlowPending && LocationActivity.getLocationFlowCompleteCached()) cachedOnly = locationFlowPending = false;
+                if (!cachedOnly) location = LocationActivity.updateLocation(WindyWallpaperService.this, requestIfMissing);
+                return location;
+            }
+        };
     }
 
     @Override

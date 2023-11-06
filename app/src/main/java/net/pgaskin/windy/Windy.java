@@ -54,7 +54,7 @@ public final class Windy implements Disposable {
          * instance when the wind field is updated or the wallpaper is resized, and should return immediately. It can
          * return null if the user location is unavailable.
          */
-        Vector2 getLocation(boolean requestIfMissing);
+        Vector2 getLocation(boolean requestIfMissing, boolean preferCache);
     }
 
     public interface PowerSaveModeProvider {
@@ -73,6 +73,7 @@ public final class Windy implements Disposable {
     private final PowerSaveModeProvider powerSaveModeProvider;
     private final UserLocationProvider userLocationProvider;
     private final WindFieldProvider windFieldProvider;
+    private final Vector2 userLocation;
     private final TextureRegion windField;
     private final Particles particles;
     private final Streamlines streamlines;
@@ -96,8 +97,10 @@ public final class Windy implements Disposable {
         particles = new Particles(config, 64);
         streamlines = new Streamlines(config);
         background = new Background(config);
+        userLocation = new Vector2(-97.0f, 38.0f);
 
         updateWindField();
+        updateUserLocation(true, false);
         resize(Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         redraw(NUM_TIMES_REDRAW, false); // note: replaces the redraw call in resize
     }
@@ -108,7 +111,7 @@ public final class Windy implements Disposable {
         this.width = width;
         this.height = height;
 
-        updateUserLocation();
+        updateWindFieldRegion();
         particles.resize(width, height);
         streamlines.resize(width, height);
         background.resize(width, height);
@@ -139,14 +142,18 @@ public final class Windy implements Disposable {
         return old != null;
     }
 
-    private void updateUserLocation() {
-        final Vector2 location = this.userLocationProvider.getLocation(true);
+    private boolean updateUserLocation(boolean requestIfMissing, boolean preferCache) {
+        final Vector2 location = this.userLocationProvider.getLocation(requestIfMissing, preferCache);
+        if (location == null || location.epsilonEquals(userLocation, 0.1f)) return false;
+        userLocation.set(location);
+        return true;
+    }
+
+    private void updateWindFieldRegion() {
         final float wndLng = config.windowSize * ((float) width / (float) height);
         final float wndLat = config.windowSize;
-        final float centerLng = location != null ? location.x : -97.0f;
-        final float centerLat = location != null ? location.y : 38.0f;
-        final float boundL = MathUtils.clamp(centerLng - wndLng/2f, -180, 180);
-        final float boundT = MathUtils.clamp(centerLat + wndLat/2f, -90, 90);
+        final float boundL = MathUtils.clamp(userLocation.x - wndLng/2f, -180, 180);
+        final float boundT = MathUtils.clamp(userLocation.y + wndLat/2f, -90, 90);
         final float boundR = MathUtils.clamp(boundL + wndLng, -180, 180);
         final float boundB = MathUtils.clamp(boundT - wndLat, -90, 90);
         windField.setRegion(lngToRatio(boundL), latToRatio(boundT), lngToRatio(boundR), latToRatio(boundB));
@@ -163,8 +170,10 @@ public final class Windy implements Disposable {
     }
 
     private void render(boolean isRendering) {
-        if (updateWindField()) {
-            updateUserLocation();
+        final boolean updatedWindField = updateWindField();
+        final boolean updatedUserLocation = updateUserLocation(updatedWindField, !updatedWindField);
+        if (updatedWindField || updatedUserLocation) {
+            updateWindFieldRegion();
             streamlines.decayAlpha(config.alphaDecayNewMap);
             redraw(NUM_TIMES_REDRAW, true);
         }

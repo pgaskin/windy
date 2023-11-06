@@ -191,6 +191,10 @@ public class LocationActivity extends Activity {
         LocationActivity.locationFlowCompleteCached.set(true);
     }
 
+    public static boolean getLocationFlowCompleteCached() {
+        return LocationActivity.locationFlowCompleteCached.get();
+    }
+
     private static SharedPreferences getPreferences(Context context) {
         return context.createDeviceProtectedStorageContext().getSharedPreferences("location", Context.MODE_PRIVATE);
     }
