@@ -14,7 +14,7 @@ The shaders are based on the official Pixel windy live wallpaper, but this has:
 - Updated libGDX.
 - Other fixes.
 
-[**`Download Latest Build`**](https://nightly.link/pgaskin/windy/workflows/ci/master/app-debug)
+[**`Download`**](https://github.com/pgaskin/windy/releases/latest)
 
 #### Screenshots
 
@@ -36,7 +36,7 @@ The shaders are based on the official Pixel windy live wallpaper, but this has:
 
 The wind field images used by the live wallpaper are generated from [NOAA GFS](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast) [0.25° ANL](https://www.nco.ncep.noaa.gov/pmb/products/gfs/) data ([updated](https://www.nco.ncep.noaa.gov/pmb/nwprod/prodstat/) every 6 hours) using the wind vector values ([UGRD, VGRD](https://origin.cpc.ncep.noaa.gov/products/wesley/wgrib2/wind_uv.html)) at 850 mb elevation (this is arbitrary).
 
-The wind vector (in m/s) is extracted from the [GRIB2](https://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc/) forecast data and mapped into an RGB 8bpp image (equirectangular projection, y: latitude 90° to -90°, longitude -180° to 180°) with one pixel per grid (1440x721). The red/green values are the u/v components (east/north) of the unit vector mapped from -1-1 to 0-255, and the blue value is the magnitude of the unit vector clamped and mapped from 0-30 (this value is arbitrary) to 0-255. The image is encoded as a JPEG.
+The wind vector (in m/s) is extracted from the [GRIB2](https://www.nco.ncep.noaa.gov/pmb/docs/grib2/grib2_doc/) forecast data and mapped into a RGB 8bpp image (equirectangular projection, y: latitude 90° to -90°, longitude -180° to 180°) with one pixel per grid cell (1440x721). The red/green values are the u/v components (east/north) of the unit vector mapped from -1-1 to 0-255, and the blue value is the magnitude of the unit vector clamped and mapped from 0-30 (this value is arbitrary) to 0-255. The image is encoded as a JPEG.
 
 The elevation and wind vector magnitude range I chose seems to produce similar images as the old official one from 2019 (available at [`www.gstatic.com/pixel/livewallpaper/windy/gfs_wind_1000.jpg`](https://www.gstatic.com/pixel/livewallpaper/windy/gfs_wind_1000.jpg)), and the red/green/blue level curves are similar.
 
