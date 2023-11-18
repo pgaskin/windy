@@ -110,7 +110,7 @@ func main() {
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if p, ok := strings.CutPrefix(r.URL.Path, "/"); ok {
 				if !strings.ContainsRune(p, '/') {
-					if strings.HasPrefix(p, "wind_field.") {
+					if strings.HasPrefix(p, "wind_field.") || strings.HasPrefix(p, "wind_cache.") {
 						switch r.Method {
 						case http.MethodGet, http.MethodHead:
 							windy.ServeHTTP(w, r)

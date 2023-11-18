@@ -42,7 +42,7 @@ public class WindFieldUpdateService extends JobService {
                 }
 
                 final NetworkCapabilities cap = this.getSystemService(ConnectivityManager.class).getNetworkCapabilities(net);
-                final URL url = new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_field.jpg");
+                final URL url = new URL("https", BuildConfig.WIND_FIELD_API_HOST, "/wind_cache.png?filter=1");
                 Log.i(TAG, "updating wind field from " + url + " using network " + net + " with capabilities " + cap);
 
                 if (!cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_VPN)) {
@@ -144,7 +144,7 @@ public class WindFieldUpdateService extends JobService {
                     throw new IllegalArgumentException("Unknown jobID");
             }
             builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
-            builder.setEstimatedNetworkBytes(BuildConfig.WIND_FIELD_SIZE_ESTIMATED * 1000, 0);
+            builder.setEstimatedNetworkBytes(256 * 1000, 0);
             builder.setBackoffCriteria(BuildConfig.WIND_FIELD_UPDATE_INTERVAL_MINIMUM * 60 * 1000, JobInfo.BACKOFF_POLICY_EXPONENTIAL);
 
             final JobScheduler scheduler = context.getSystemService(JobScheduler.class);

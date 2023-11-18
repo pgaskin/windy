@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -67,6 +68,10 @@ type Windy struct {
 // WindData stores the current wind field data.
 type WindData struct {
 	JPG, PNG struct {
+		Data []byte
+		ETag string
+	}
+	FilteredPNG [1]struct {
 		Data []byte
 		ETag string
 	}
@@ -116,17 +121,35 @@ func (h *Windy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Last-Modified", data.Updated.UTC().Format(http.TimeFormat))
 
 	var buf []byte
-	switch ext := path.Ext(r.URL.Path); ext {
-	case ".jpg":
+	switch base := path.Base(r.URL.Path); base {
+	case "wind_field.jpg":
 		w.Header().Set("Content-Type", "image/jpeg")
 		w.Header().Set("ETag", data.JPG.ETag)
 		buf = data.JPG.Data
-	case ".png":
-		w.Header().Set("Content-Type", "image/png")
+	case "wind_field.png":
+		w.Header().Set("Content-Type", "image/jpeg")
 		w.Header().Set("ETag", data.PNG.ETag)
 		buf = data.PNG.Data
+	case "wind_cache.png":
+		var v int
+		if ss := r.URL.Query()["filter"]; len(ss) != 1 {
+			http.Error(w, "Exactly one filter type (?filter=) is required.", http.StatusBadRequest)
+			return
+		} else if n, _ := strconv.ParseUint(ss[0], 10, 64); n == 0 {
+			http.Error(w, "Invalid filter type.", http.StatusBadRequest)
+			return
+		} else {
+			v = int(n)
+		}
+		if v > len(data.FilteredPNG) {
+			http.Error(w, "Unsupported filter type.", http.StatusBadRequest)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("ETag", data.FilteredPNG[v-1].ETag)
+		buf = data.FilteredPNG[v-1].Data
 	default:
-		http.Error(w, "No image available for extension "+ext+".", http.StatusNotFound)
+		http.Error(w, "No image available for "+base+".", http.StatusNotFound)
 		return
 	}
 	http.ServeContent(w, r, "", data.Updated, bytes.NewReader(buf))
@@ -187,6 +210,7 @@ loop:
 
 			var output WindData
 			output.Updated = time.Now()
+			output.Updated = time.Date(2023, 11, 2, 4, 0, 0, 0, time.UTC)
 			output.Cycle = gfsCycle(output.Updated)
 
 			var wind [][][2]float64
@@ -247,7 +271,7 @@ loop:
 			for latIdx := range wind {
 				for lngIdx := range wind[latIdx] {
 					s, u, v := decompose(wind[latIdx][lngIdx])
-					img.Set(lngIdx, latIdx, color.RGBA{
+					img.SetRGBA(lngIdx, latIdx, color.RGBA{
 						R: uint8(mapValue(u, -1, 1, 0, 255)),
 						G: uint8(mapValue(v, -1, 1, 0, 255)),
 						B: uint8(mapValue(s, 0, 30, 0, 255)),
@@ -256,24 +280,46 @@ loop:
 				}
 			}
 			logger.Info("generated image, encoding")
+			{
+				var pngBuf bytes.Buffer
+				if err := png.Encode(&pngBuf, img); err != nil {
+					return nil, fmt.Errorf("encode png: %w", err)
+				}
+				output.PNG.Data = pngBuf.Bytes()
 
-			var pngBuf bytes.Buffer
-			if err := png.Encode(&pngBuf, img); err != nil {
-				return nil, fmt.Errorf("encode png: %w", err)
+				var jpgBuf bytes.Buffer
+				if err := jpeg.Encode(&jpgBuf, img, &jpeg.Options{Quality: 100}); err != nil {
+					return nil, fmt.Errorf("encode png: %w", err)
+				}
+				output.JPG.Data = jpgBuf.Bytes()
+
+				pngSha := sha1.Sum(output.PNG.Data)
+				jpgSha := sha1.Sum(output.JPG.Data)
+
+				output.PNG.ETag = "\"" + hex.EncodeToString(pngSha[:]) + "\""
+				output.JPG.ETag = "\"" + hex.EncodeToString(jpgSha[:]) + "\""
 			}
-			output.PNG.Data = pngBuf.Bytes()
+			for i, filter := range []func(*image.RGBA){
+				func(img *image.RGBA) {
+					bilinear4(img)
+					gaussian5(img)
+				},
+			} {
+				logger.Info("generating pre-filtered texture", "filter", i+1)
 
-			var jpgBuf bytes.Buffer
-			if err := jpeg.Encode(&jpgBuf, img, &jpeg.Options{Quality: 100}); err != nil {
-				return nil, fmt.Errorf("encode png: %w", err)
+				old := img
+				img := image.NewRGBA(old.Rect)
+				img.Pix = slices.Clone(old.Pix)
+				filter(img)
+
+				var buf bytes.Buffer
+				if err := png.Encode(&buf, img); err != nil {
+					return nil, fmt.Errorf("encode png: %w", err)
+				}
+				output.FilteredPNG[i].Data = buf.Bytes()
+				sha := sha1.Sum(output.FilteredPNG[i].Data)
+				output.FilteredPNG[i].ETag = "\"" + hex.EncodeToString(sha[:]) + "\""
 			}
-			output.JPG.Data = jpgBuf.Bytes()
-
-			pngSha := sha1.Sum(output.PNG.Data)
-			jpgSha := sha1.Sum(output.JPG.Data)
-
-			output.PNG.ETag = "\"" + hex.EncodeToString(pngSha[:]) + "\""
-			output.JPG.ETag = "\"" + hex.EncodeToString(jpgSha[:]) + "\""
 
 			return &output, nil
 		}); err != nil {
@@ -284,6 +330,83 @@ loop:
 		in := time.Hour
 		update.Reset(in)
 		logger.Info("scheduled next update", "in", in)
+	}
+}
+
+// gaussian5 does a gaussian blur with a 5x5 kernel.
+func gaussian5(img *image.RGBA) {
+	if img.Stride != 4*img.Rect.Max.X {
+		panic("wtf")
+	}
+	tmp := make([]uint8, len(img.Pix))
+	gaussian5k(tmp, img.Pix, img.Rect.Max.X, img.Rect.Max.Y)
+	gaussian5k(img.Pix, tmp, img.Rect.Max.Y, img.Rect.Max.X)
+}
+
+// gaussian5k does a gaussian blur with a 5x5 kernel along the x-axis on a
+// row-major RGBA image, transposing the result.
+func gaussian5k(out, in []uint8, w, h int) {
+	kernel := [...]uint32{
+		// gaussian blur kernel (radius 2)
+		// note: 65536 = 2^16
+		// note: sum is 65534/65536, so it's close enough (it must not be more, though, or pixels will overflow)
+		uint32(math.Trunc(65536 * 0.06136)),
+		uint32(math.Trunc(65536 * 0.24477)),
+		uint32(math.Trunc(65536 * 0.38774)),
+		uint32(math.Trunc(65536 * 0.24477)),
+		uint32(math.Trunc(65536 * 0.06136)),
+	}
+	for y := 0; y < h; y++ {
+		for x := 0; x < w; x++ {
+			var c [4]uint32
+			for ki, k := range kernel {
+				r := (len(kernel) - 1) / 2
+				x := min(max((ki-r)+x, 0), w-1)
+				ip := in[(y*w+x)*len(c):][:len(c):len(c)]
+				for i := range c {
+					c[i] += (uint32(ip[i]) + 1) * k // +1 so 255 = 255 in the result
+				}
+			}
+			p := out[(x*h+y)*len(c):][:len(c):len(c)] // transposed
+			for i := range c {
+				p[i] = uint8(c[i] >> 16)
+			}
+		}
+	}
+}
+
+// bilinear4 scales img by 0.25 using a bilinear filter (essentially a box
+// filter since 4 is a power of 2).
+func bilinear4(img *image.RGBA) {
+	if img.Stride != 4*img.Rect.Max.X {
+		panic("wtf")
+	}
+	tmp := make([]uint8, len(img.Pix)/4)
+	img.Stride /= 4 // 1/4
+	bilinear4k(tmp, img.Pix, img.Rect.Max.X, img.Rect.Max.Y)
+	img.Rect.Max.X /= 4 // 1/4
+	bilinear4k(img.Pix, tmp, img.Rect.Max.Y, img.Rect.Max.X)
+	img.Rect.Max.Y /= 4 // 1/4
+}
+
+// bilinear4k scales img by 0.25 using a bilinear filter along the x-axis on a
+// row-major RGBA image, transposing the result.
+func bilinear4k(out, in []uint8, w, h int) {
+	for y := 0; y < h; y++ {
+		for x := 0; x < w/4; x++ { // 1/4
+			var c [4]uint32
+			for i := 0; i < 4; i++ { // 1/4
+				x := x*4 + i
+				ip := in[(y*w+x)*len(c):][:len(c):len(c)]
+				for i := range c {
+					c[i] += uint32(ip[i])
+				}
+			}
+			p := out[(x*h+y)*len(c):][:len(c):len(c)] // transposed
+			for i := range c {
+				p[i] = uint8(c[i] >> 2) // 1/2^2 == 1/4
+			}
+		}
 	}
 }
 
