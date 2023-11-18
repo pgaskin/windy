@@ -106,7 +106,7 @@ public class WindField {
         }
         for (int x = 0; x < w; x++) {
             for (int y = 0; y < h; y++) {
-                blurKernel(a, b, x, y, w, h, true);
+                blurKernel(b, a, x, y, w, h, true);
             }
         }
         if (!src.isMutable()) {
