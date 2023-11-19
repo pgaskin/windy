@@ -16,6 +16,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"time"
 )
 
 const EnvPrefix = "WINDY"
@@ -30,6 +31,7 @@ var (
 	WindGFS             = flag.String("wind-gfs", "", "Override the default GFS forecast data mirror")
 	WindGFSPrecision    = flag.Float64("wind-gfs-precision", 0, "Override GFS data lng/lat grid precision to use")
 	WindGFSLevel        = flag.String("wind-gfs-level", "", "Override GFS wind data elevation to use")
+	WindGFSTime         = flag.Int64("wind-gfs-time", 0, "Override GFS forecast time (unix time)")
 	WindTimeout         = flag.Duration("wind-timeout", 0, "Override the default timeout for an update")
 	WindFetchTimeout    = flag.Duration("wind-fetch-timeout", 0, "Override the default timeout for fetching a single cycle of wind data (negative for no limit)")
 	WindMaxPrevCycles   = flag.Int("wind-max-prev-cycles", 0, "Override the default maximum number of previous wind data cycles to try if the current one isn't available (negative for no limit)")
@@ -102,6 +104,9 @@ func main() {
 		} else {
 			windy.GFS = *gfs
 		}
+	}
+	if *WindGFSTime != 0 {
+		windy.GFSTime = time.Unix(*WindGFSTime, 0)
 	}
 
 	// setup http

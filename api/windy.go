@@ -49,6 +49,9 @@ type Windy struct {
 	// GFS wind vector elevation to fetch.
 	GFSLevel string
 
+	// GFS forecast time override.
+	GFSTime time.Time
+
 	// The maximum total amount of time to spend attempting to do an update.
 	Timeout time.Duration
 
@@ -209,7 +212,11 @@ loop:
 			defer cancel()
 
 			var output WindData
-			output.Updated = time.Now()
+			if h.GFSTime.IsZero() {
+				output.Updated = time.Now()
+			} else {
+				output.Updated = h.GFSTime
+			}
 			output.Cycle = gfsCycle(output.Updated)
 
 			var wind [][][2]float64
