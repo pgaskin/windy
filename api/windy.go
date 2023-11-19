@@ -210,7 +210,6 @@ loop:
 
 			var output WindData
 			output.Updated = time.Now()
-			output.Updated = time.Date(2023, 11, 2, 4, 0, 0, 0, time.UTC)
 			output.Cycle = gfsCycle(output.Updated)
 
 			var wind [][][2]float64
