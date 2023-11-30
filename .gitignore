@@ -7,3 +7,4 @@ local.properties
 /captures
 /app/build
 /app/libs
+/target

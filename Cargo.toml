@@ -1,0 +1,12 @@
+[package]
+name = "windy"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+grib = "0.8.0"
+image = { version = "0.24.7", default-features = false, features = ["jpeg", "png"] }
+
+[[bin]]
+name = "windyapi"
+path = "api/main.rs"

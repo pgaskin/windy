@@ -691,6 +691,10 @@ func gribValues(ctx context.Context, gribber string, data []byte, fn func(lat, l
 		}
 	}
 
+	// FOR TESTING RUST STUFF
+	xx, _ := os.ReadFile("grib")
+	os.WriteFile("grib", append(xx, data...), 0644)
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
