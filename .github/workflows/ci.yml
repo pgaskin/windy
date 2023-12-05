@@ -29,6 +29,7 @@ jobs:
           path: |
             wind_field.jpg
             wind_field.png
+            wind_cache.*.png
 
   app:
     name: App

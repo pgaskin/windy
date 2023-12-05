@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -186,6 +187,11 @@ func main() {
 		}
 		if err := os.WriteFile("wind_field.png", data.PNG.Data, 0644); err != nil {
 			slog.Error("failed to save image", "error", err)
+		}
+		for i, d := range data.FilteredPNG {
+			if err := os.WriteFile("wind_cache."+strconv.Itoa(i+1)+".png", d.Data, 0644); err != nil {
+				slog.Error("failed to save image", "error", err)
+			}
 		}
 		slog.Info("saved images")
 	} else {
