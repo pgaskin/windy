@@ -1,10 +1,13 @@
-// extracted from com.breel.wallpapers (11)
-
 #version 310 es
+
+// extracted from com.breel.wallpapers (11)
 
 precision lowp float;
 
+uniform mat4 u_projTrans;
+uniform vec2 u_resolution;
 uniform float u_particleOpacity;
+
 in vec4 v_color;
 
 out vec4 fragColor;

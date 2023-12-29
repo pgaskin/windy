@@ -1,12 +1,14 @@
-// extracted from com.breel.wallpapers (11)
-
 #version 310 es
+
+// extracted from com.breel.wallpapers (11)
 
 precision lowp float;
 
 uniform mat4 u_projTrans;
+uniform vec2 u_resolution;
 uniform sampler2D u_positionTex;
 
+in vec2 a_texCoord0;
 in vec3 a_position;
 
 out vec4 v_color;

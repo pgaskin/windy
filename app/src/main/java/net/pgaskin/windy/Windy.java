@@ -85,6 +85,8 @@ public final class Windy implements Disposable {
     private float streamlineDelta;
 
     public Windy(Config config, PowerSaveModeProvider powerSaveModeProvider, UserLocationProvider userLocationProvider, WindFieldProvider windFieldProvider) {
+        ShaderProgram.pedantic = false;
+        
         this.config = config;
         this.powerSaveModeProvider = powerSaveModeProvider;
         this.userLocationProvider = userLocationProvider;

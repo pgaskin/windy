@@ -1,6 +1,6 @@
-// extracted from com.breel.wallpapers (11)
-
 #version 310 es
+
+// extracted from com.breel.wallpapers (11)
 
 #define M_PI 3.1415926535897932384626433832795
 
@@ -8,12 +8,14 @@ precision lowp float;
 
 uniform mat4 u_projTrans;
 uniform sampler2D u_texture;
+uniform sampler2D u_map;
 uniform sampler2D u_vectorField;
 uniform vec4 u_vectorFieldBounds;
 uniform vec4 u_backgroundColor1;
 uniform vec4 u_backgroundColor2;
 uniform vec4 u_colorSlow;
 uniform vec4 u_colorFast;
+uniform vec2 u_resolution;
 uniform vec2 u_size;
 
 in highp vec2 v_uv;
