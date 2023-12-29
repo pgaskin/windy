@@ -38,6 +38,7 @@ void main() {
 
     float speed = texture(u_vectorField, backgroundUv).b;
     vec4 color = mix(u_backgroundColor1, u_backgroundColor2, speed);
+    // debug: color = texture(u_vectorField, backgroundUv) * 0.75;
 
     vec4 particles = texture(u_texture, uv);
     vec4 particlesColor = mix(u_colorSlow, u_colorFast, particles.r);

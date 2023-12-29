@@ -16,7 +16,7 @@ out lowp vec2 v_uv;
 
 void main() {
     vec3 position = a_position;
-    (void) u_resolution; // unused
+    u_resolution; // unused
     position.xy *= u_size;
     gl_Position = u_projTrans * u_transform * vec4(position, 1.0);
     v_uv = a_texCoord0;
