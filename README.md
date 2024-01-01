@@ -14,6 +14,9 @@ The shaders are based on the official Pixel windy live wallpaper, but this has:
 - Updated libGDX.
 - Other fixes.
 
+> [!NOTE]
+> On some devices (e.g., the Pixel 8), the shaders are buggy, causing the lines to appear jagged or straight left/right/up/down. I'm still working on figuring out the root cause when I have time.
+
 [**`Download`**](https://github.com/pgaskin/windy/releases/latest)
 
 #### Screenshots
