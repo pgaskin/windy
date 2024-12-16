@@ -41,6 +41,10 @@ float rand(vec2 co) {
 }
 
 vec2 windSpeed(vec2 position) {
+    // return vec2(sin(u_timeAcc), cos(u_timeAcc)) * .5; // debug: simple time-based movement
+    // ^ huh... the circles drawn by that are jagged on the pixel but not the moto
+    return vec2(sin(position.x), cos(u_timeAcc)) * .5; // debug: waves
+    // ^ huh... the circles drawn by that are jagged on the pixel but not the moto
     highp vec2 uv = u_vectorFieldBounds.xy + position * u_vectorFieldBounds.zw * u_size;
     uv = equirectangularToMercator(uv);
     highp vec4 wind = texture(u_vectorField, uv);
