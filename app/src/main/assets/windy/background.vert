@@ -2,7 +2,7 @@
 
 // extracted from com.breel.wallpapers (11)
 
-precision lowp float;
+precision highp float;
 
 uniform mat4 u_projTrans;
 uniform mat4 u_transform;

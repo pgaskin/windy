@@ -17,6 +17,8 @@ uniform float u_particleLife;
 uniform vec2 u_resolution;
 uniform vec2 u_size;
 
+// texture is xyzw/rgba = x,y,life,unused
+
 in vec2 v_uv;
 
 out vec4 fragColor;
@@ -39,9 +41,9 @@ float rand(vec2 co) {
 }
 
 vec2 windSpeed(vec2 position) {
-    vec2 uv = u_vectorFieldBounds.rg + position * u_vectorFieldBounds.ba * u_size;
+    highp vec2 uv = u_vectorFieldBounds.xy + position * u_vectorFieldBounds.zw * u_size;
     uv = equirectangularToMercator(uv);
-    vec4 wind = texture(u_vectorField, uv);
+    highp vec4 wind = texture(u_vectorField, uv);
     return (wind.xy - 0.5) * vec2(1.0, -1.0) * u_resolution;
 }
 
@@ -68,7 +70,7 @@ void main() {
 
     // Age particle
     float life = particleData.z - (u_timeDelta / u_particleLife) * .3;
-    float isDead = 1.0 - step(0.0, life);
+    float isDead = 1.0 - step(0.0, life); // isDead = (life < 0.0) ? 1.0 ? 0.0
 
     // New particle position when dead
     vec2 vSeed = vec2(u_timeAcc);
@@ -77,8 +79,14 @@ void main() {
     vec2 randomPosition = vec2(r1, r2) * 1.2 - .1;
 
     // Resetting particle when dead
-    newPosition = mix(newPosition, randomPosition, isDead);
-    life = mix(life, .2 + rand(v_uv.x * v_uv.y + vSeed) * .8, isDead);
+    newPosition = mix(newPosition, randomPosition, isDead); // newPosition = isDead ? randomPosition : newPosition
+    life = mix(life, .2 + rand(v_uv.x * v_uv.y + vSeed) * .8, isDead); // life = isDead ? rand(.2 to .8) : life
 
-    fragColor = vec4(newPosition, life, 1.0);
+    fragColor = vec4(newPosition, life, 1.0); // fragColor = { .x = newPosition.x, .y = newPosition.y, .z = life, .w = 1.0 }
 }
+
+// note: the bug on non-adreno gpus is almost definitely in here somewhere... or possibly in how we handle textures
+// particle/trail works fine (I tested it individually)
+// background, vector field, and coordinate transformation works fine (I compared screenshots of it in various forms -- original, speed only, background only, particles/trails only)
+// something in here is causing jagged movement on the pixel
+// todo: try doing something simple based on time in moveParticle to see if I can make them move consistently between devices

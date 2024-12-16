@@ -2,7 +2,7 @@
 
 // extracted from com.breel.wallpapers (11)
 
-precision lowp float;
+precision highp float;
 
 uniform mat4 u_projTrans;
 uniform vec2 u_resolution;
@@ -16,4 +16,6 @@ out vec4 fragColor;
 void main() {
     fragColor = texture(u_texture, v_uv);
     fragColor.g *= u_fadeDecay;
+    //fragColor.g *= .95; // debug: fade out trail faster
+    //fragColor = texture(u_texture, v_uv); // debug: don't fade out trails
 }

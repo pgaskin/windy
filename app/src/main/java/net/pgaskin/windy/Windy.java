@@ -28,7 +28,7 @@ public final class Windy implements Disposable {
         public int windowSize = 75;
         public Vector2 scale = new Vector2(1.2f, 1.15f); // for page swipe offset parallax
         public final int minPagesToSwipe = 4; // for page swipe offset parallax
-        public int particleCount = 2048;
+        public int particleCount = 100;
         public float windSpeed = 0.1f;
         public float particleLife = 8.0f;
         public Color slowWindColor = new Color(1.0f, 0.0f, 1.0f, 1.0f);

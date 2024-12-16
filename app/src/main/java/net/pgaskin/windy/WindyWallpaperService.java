@@ -70,6 +70,7 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
 
             @Override
             public Vector2 getLocation(boolean requestIfMissing, boolean cachedOnly) {
+                if (true) return new Vector2(-75.7f, 45.4f);
                 if (locationFlowPending && LocationActivity.getLocationFlowCompleteCached()) cachedOnly = locationFlowPending = false;
                 if (!cachedOnly) location = LocationActivity.updateLocation(WindyWallpaperService.this, requestIfMissing);
                 return location;

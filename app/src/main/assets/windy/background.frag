@@ -4,7 +4,7 @@
 
 #define M_PI 3.1415926535897932384626433832795
 
-precision lowp float;
+precision highp float;
 
 uniform mat4 u_projTrans;
 uniform sampler2D u_texture;
@@ -31,16 +31,19 @@ vec2 equirectangularToMercator(vec2 uv) {
 }
 
 void main() {
-    vec2 uv = v_uv;
+    vec2 position = v_uv;
 
-    highp vec2 backgroundUv = u_vectorFieldBounds.xy + v_uv * u_vectorFieldBounds.zw * u_size;
+    highp vec2 backgroundUv = u_vectorFieldBounds.xy + position * u_vectorFieldBounds.zw * u_size;
     backgroundUv = equirectangularToMercator(backgroundUv);
 
     float speed = texture(u_vectorField, backgroundUv).b;
     vec4 color = mix(u_backgroundColor1, u_backgroundColor2, speed);
-    // debug: color = texture(u_vectorField, backgroundUv) * 0.75;
+    //color = texture(u_vectorField, backgroundUv); // debug: use the wind field as the background
+    //color = vec4(speed, speed, speed, 0); // debug: use the speed
+    //color = vec4(0, 0, 0, 0); // debug: black
 
-    vec4 particles = texture(u_texture, uv);
+    vec4 particles = texture(u_texture, position);
     vec4 particlesColor = mix(u_colorSlow, u_colorFast, particles.r);
     fragColor = mix(color, particlesColor, particlesColor.a * particles.g);
+    //fragColor = color; // debug: don't draw particles or trails
 }
