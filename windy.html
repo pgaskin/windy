@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Windy</title>
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            background: #000;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas onclick="window.location.reload()"></canvas>
+    <script src="wind_cache.js"></script>
+    <script type="module">
+        import { vec3, mat4 } from 'https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.min.js';
+
+        const adapter = await navigator.gpu.requestAdapter()
+        const device = await adapter.requestDevice()
+
+        const canvas = document.querySelector('canvas')
+        const context = canvas.getContext('webgpu')
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat()
+
+        context.configure({
+            device,
+            format: presentationFormat,
+        })
+
+        const backgroundModule = device.createShaderModule({
+            label: 'background shader',
+            code: `
+                const pi = radians(180.0);
+                const bg1 = vec3f(0.102, 0.035, 0.035);
+                const bg2 = vec3f(0.271, 0.090, 0.090);
+
+                fn equirectangularToMercator(uv: vec2f) -> vec2f {
+                    let latitude = (uv.y * 2.0 - 1.0) * pi * 0.5;
+                    return vec2(uv.x, atan(sinh(latitude)) / (pi * 0.5) * 0.5 + 0.5);
+                }
+
+                struct BackgroundVertex {
+                    @builtin(position) position: vec4f,
+                    @location(0) texcoord: vec2f,
+                };
+
+                @vertex fn vs(@builtin(vertex_index) idx: u32) -> BackgroundVertex {
+                    let xy = array(
+                        vec2f(-1, -1), // triangle 1: bottom-left
+                        vec2f( 1, -1), // triangle 1: bottom-right
+                        vec2f(-1,  1), // triangle 1: top-left
+                        vec2f(-1,  1), // triangle 2: top-left
+                        vec2f( 1, -1), // triangle 2: bottom-right
+                        vec2f( 1,  1), // triangle 2: top-right
+                    )[idx];
+                    var v: BackgroundVertex;
+                    v.position = vec4f(xy, 0.0, 1.0);
+                    v.texcoord = equirectangularToMercator(xy / 2.0 + 0.5);
+                    return v;
+                }
+
+                @group(0) @binding(0) var vectorFieldSampler: sampler;
+                @group(0) @binding(1) var vectorField: texture_2d<f32>;
+
+                @fragment fn fs(v: BackgroundVertex) -> @location(0) vec4f {
+                    // TODO: vector field bounds
+                    let speed = textureSample(vectorField, vectorFieldSampler, v.texcoord).b;
+                    let color = vec4(mix(bg1, bg2, speed), 1.0);
+                    // TODO: particles
+                    return color;
+                }
+            `,
+        })
+
+        const backgroundPipeline = device.createRenderPipeline({
+            label: 'background pipeline',
+            layout: 'auto',
+            vertex: {
+                module: backgroundModule,
+            },
+            fragment: {
+                module: backgroundModule,
+                targets: [{ format: presentationFormat }],
+            },
+        })
+
+        const vectorFieldImg = await wind_cache();
+        const vectorField = device.createTexture({
+            label: 'wind_cache texture',
+            format: 'rgba8unorm',
+            size: [vectorFieldImg.width, vectorFieldImg.height],
+            usage: GPUTextureUsage.TEXTURE_BINDING
+                | GPUTextureUsage.COPY_DST
+                | GPUTextureUsage.RENDER_ATTACHMENT,
+        })
+        device.queue.copyExternalImageToTexture(
+            { source: vectorFieldImg, flipY: true },
+            { texture: vectorField },
+            { width: vectorFieldImg.width, height: vectorFieldImg.height },
+        )
+
+        const vectorFieldSampler = device.createSampler({
+            addressModeU: 'repeat',
+            addressModeV: 'repeat',
+            magFilter: 'linear',
+        })
+
+        const bindGroup = device.createBindGroup({
+            layout: backgroundPipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: vectorFieldSampler },
+                { binding: 1, resource: vectorField.createView() },
+            ],
+        })
+
+        const renderPassDescriptor = {
+            label: 'background render pass',
+            colorAttachments: [
+                {
+                    clearValue: [0, 0, 0, 1],
+                    loadOp: 'clear',
+                    storeOp: 'store',
+                },
+            ],
+        }
+
+        const settings = {
+            addressModeU: 'repeat',
+            addressModeV: 'repeat',
+            magFilter: 'linear',
+        }
+
+        function render() {
+            renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView()
+
+            const encoder = device.createCommandEncoder({
+                label: 'background encoder',
+            })
+            const pass = encoder.beginRenderPass(renderPassDescriptor)
+            pass.setPipeline(backgroundPipeline)
+            pass.setBindGroup(0, bindGroup)
+            pass.draw(6)
+            pass.end()
+
+            const commandBuffer = encoder.finish()
+            device.queue.submit([commandBuffer])
+        }
+
+        new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const canvas = entry.target
+                const width = entry.contentBoxSize[0].inlineSize
+                const height = entry.contentBoxSize[0].blockSize
+                canvas.width = Math.max(1, Math.min(width, device.limits.maxTextureDimension2D))
+                canvas.height = Math.max(1, Math.min(height, device.limits.maxTextureDimension2D))
+                render()
+            }
+        }).observe(canvas)
+    </script>
+</body>
+
+</html>
