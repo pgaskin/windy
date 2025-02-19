@@ -22,7 +22,6 @@
 
 <body>
     <canvas onclick="window.location.reload()" width="1080" height="2400"></canvas>
-    <script src="wind_cache.js"></script>
     <script type="importmap">
         {
             "imports": {
@@ -34,6 +33,13 @@
     <script type="module">
         import { vec3, vec4, mat4 } from 'wgpu-matrix';
         import { makeShaderDataDefinitions, makeStructuredView } from 'webgpu-utils';
+
+        async function wind_cache(filter = 1) {
+            const res = await fetch(`https://windy.api.pgaskin.net/wind_cache.png?filter=${filter}`)
+            const blob = await res.blob()
+            const img = await createImageBitmap(blob, { colorSpaceConversion: 'none' })
+            return img
+        }
         
         const PARTICLES_COUNT = 2048
 
