@@ -14,8 +14,6 @@
 
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
             image-rendering: pixelated;
             image-rendering: crisp-edges;
         }
@@ -23,10 +21,19 @@
 </head>
 
 <body>
-    <canvas onclick="window.location.reload()"></canvas>
+    <canvas onclick="window.location.reload()" width="1080" height="2400"></canvas>
     <script src="wind_cache.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "wgpu-matrix": "https://esm.sh/wgpu-matrix@3.3.0",
+                "webgpu-utils": "https://esm.sh/webgpu-utils@1.9.5"
+            }
+        }
+    </script>
     <script type="module">
-        import { vec3, mat4 } from 'https://wgpu-matrix.org/dist/3.x/wgpu-matrix.module.min.js';
+        import { vec3, vec4, mat4 } from 'wgpu-matrix';
+        import { makeShaderDataDefinitions, makeStructuredView } from 'webgpu-utils';
 
         const adapter = await navigator.gpu.requestAdapter()
         const device = await adapter.requestDevice()
@@ -40,50 +47,146 @@
             format: presentationFormat,
         })
 
+        function clamp(n, min, max) {
+            if (min !== undefined && n < min)
+                return min
+            if (max !== undefined && n > max)
+                return max
+            return n
+        }
+
+        function lngToEqui(lng) {
+            return (180.0 + lng) / 360.0;
+        }
+
+        function latToEqui(lat) {
+            return (90.0 + lat) / 180.0;
+        }
+
+        class WindField {
+            constructor(device, img) {
+                this.image = img;
+                this.sampler = device.createSampler({
+                    addressModeU: 'repeat',
+                    addressModeV: 'repeat',
+                    magFilter: 'linear',
+                })
+                this.texture = device.createTexture({
+                    label: 'wind_cache texture',
+                    format: 'rgba8unorm',
+                    size: [this.image.width, this.image.height],
+                    usage: GPUTextureUsage.TEXTURE_BINDING
+                        | GPUTextureUsage.COPY_DST
+                        | GPUTextureUsage.RENDER_ATTACHMENT,
+                });
+                device.queue.copyExternalImageToTexture(
+                    { source: this.image, flipY: true },
+                    { texture: this.texture },
+                    { width: this.image.width, height: this.image.height },
+                )
+                this.region = vec4.create()
+                this.setRegion(75, 1, 1, -75.7, 45.4)
+            }
+            setWindowSize(windowSize) {
+                this.setRegion(windowSize, this.width, this.height, this.longitude, this.latitude)
+            }
+            setSize(width, height) {
+                this.setRegion(this.windowSize, width, height, this.longitude, this.latitude)
+            }
+            setPosition(longitude, latitude) {
+                this.setRegion(this.windowSize, this.width, this.height, longitude, latitude)
+            }
+            setRegion(windowSize, width, height, longitude, latitude) {
+                this.windowSize = windowSize
+                this.width = width
+                this.height = height
+                this.longitude = longitude
+                this.latitude = latitude
+                const wndLngWidth = this.windowSize * (this.width / this.height)
+                const wndLatHeight = this.windowSize;
+                const left = clamp(this.longitude - wndLngWidth/2, -180, 180)
+                const top = clamp(this.latitude - wndLatHeight/2, -90, 90)
+                const right = clamp(left + wndLngWidth, -180, 180)
+                const bottom = clamp(top + wndLatHeight, -90, 90)
+                vec4.set(lngToEqui(left), latToEqui(top), lngToEqui(right)-lngToEqui(left), latToEqui(bottom)-latToEqui(top), this.region)
+            }
+        }
+
+        const vectorField = new WindField(device, await wind_cache())
+        vectorField.setSize(canvas.width, canvas.height)
+
+        const backgroundShader = `
+            struct Params {
+                vectorFieldBounds: vec4f, // x,y,w,h
+                scale: f32, // >= 1.0
+                // TODO: transform (TODO: uniform, multiply v.position)
+                colorBackground1: vec3f, // r,g,b
+                colorBackground2: vec3f, // r,g,b
+                colorParticleSlow: vec3f, // r,g,b
+                colorParticleFast: vec3f, // r,g,b
+            }
+
+            struct BackgroundVertex {
+                @builtin(position) position: vec4f,
+                @location(0) texcoord: vec2f,
+            }
+
+            @vertex fn vs(@builtin(vertex_index) idx: u32) -> BackgroundVertex {
+                let xy = array(
+                    vec2f(-1, -1), // triangle 1: bottom-left
+                    vec2f( 1, -1), // triangle 1: bottom-right
+                    vec2f(-1,  1), // triangle 1: top-left
+                    vec2f(-1,  1), // triangle 2: top-left
+                    vec2f( 1, -1), // triangle 2: bottom-right
+                    vec2f( 1,  1), // triangle 2: top-right
+                )[idx];
+                var v: BackgroundVertex;
+                v.position = vec4f(xy * params.scale, 0.0, 1.0);
+                v.texcoord = xy / 2. + .5; // xy[-1,1] -> xy[0,1]
+                return v;
+            }
+
+            @group(0) @binding(0) var<uniform> params : Params;
+            @group(0) @binding(1) var vectorFieldSampler: sampler;
+            @group(0) @binding(2) var vectorField: texture_2d<f32>;
+
+            @fragment fn fs(v: BackgroundVertex) -> @location(0) vec4f {
+                let uv = equiToMercator(params.vectorFieldBounds.xy + v.texcoord.xy*params.vectorFieldBounds.zw*params.scale);
+                let speed = textureSample(vectorField, vectorFieldSampler, uv).b;
+                let color = vec4(mix(params.colorBackground1, params.colorBackground2, speed), 1.0);
+                // TODO: particles
+                return color;
+            }
+
+            fn equiToMercator(uv: vec2f) -> vec2f {
+                let pi = radians(180.0);
+                return vec2(uv.x, atan(sinh((uv.y*2.0 - 1.0)*pi*0.5))/(pi*0.5)*0.5 + 0.5);
+            }
+        `
+
         const backgroundModule = device.createShaderModule({
             label: 'background shader',
-            code: `
-                const pi = radians(180.0);
-                const bg1 = vec3f(0.102, 0.035, 0.035);
-                const bg2 = vec3f(0.271, 0.090, 0.090);
-
-                fn equirectangularToMercator(uv: vec2f) -> vec2f {
-                    let latitude = (uv.y * 2.0 - 1.0) * pi * 0.5;
-                    return vec2(uv.x, atan(sinh(latitude)) / (pi * 0.5) * 0.5 + 0.5);
-                }
-
-                struct BackgroundVertex {
-                    @builtin(position) position: vec4f,
-                    @location(0) texcoord: vec2f,
-                };
-
-                @vertex fn vs(@builtin(vertex_index) idx: u32) -> BackgroundVertex {
-                    let xy = array(
-                        vec2f(-1, -1), // triangle 1: bottom-left
-                        vec2f( 1, -1), // triangle 1: bottom-right
-                        vec2f(-1,  1), // triangle 1: top-left
-                        vec2f(-1,  1), // triangle 2: top-left
-                        vec2f( 1, -1), // triangle 2: bottom-right
-                        vec2f( 1,  1), // triangle 2: top-right
-                    )[idx];
-                    var v: BackgroundVertex;
-                    v.position = vec4f(xy, 0.0, 1.0);
-                    v.texcoord = equirectangularToMercator(xy / 2.0 + 0.5);
-                    return v;
-                }
-
-                @group(0) @binding(0) var vectorFieldSampler: sampler;
-                @group(0) @binding(1) var vectorField: texture_2d<f32>;
-
-                @fragment fn fs(v: BackgroundVertex) -> @location(0) vec4f {
-                    // TODO: vector field bounds
-                    let speed = textureSample(vectorField, vectorFieldSampler, v.texcoord).b;
-                    let color = vec4(mix(bg1, bg2, speed), 1.0);
-                    // TODO: particles
-                    return color;
-                }
-            `,
+            code: backgroundShader,
         })
+
+        const backgroundShaderDefs = makeShaderDataDefinitions(backgroundShader)
+        console.log(backgroundShaderDefs)
+
+        const backgroundParams = makeStructuredView(backgroundShaderDefs.uniforms.params)
+        backgroundParams.set({
+            vectorFieldBounds: vectorField.region,
+            scale: 1.0,
+            colorBackground1: [0.102, 0.035, 0.035],
+            colorBackground2: [0.271, 0.090, 0.090],
+            colorParticleSlow: [0.102, 0.035, 0.035],
+            colorParticleFast: [0.271, 0.090, 0.090],
+        })
+
+        const backgroundParamsBuffer = device.createBuffer({
+            size: backgroundParams.arrayBuffer.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        })
+        device.queue.writeBuffer(backgroundParamsBuffer, 0, backgroundParams.arrayBuffer)
 
         const backgroundPipeline = device.createRenderPipeline({
             label: 'background pipeline',
@@ -97,36 +200,16 @@
             },
         })
 
-        const vectorFieldImg = await wind_cache();
-        const vectorField = device.createTexture({
-            label: 'wind_cache texture',
-            format: 'rgba8unorm',
-            size: [vectorFieldImg.width, vectorFieldImg.height],
-            usage: GPUTextureUsage.TEXTURE_BINDING
-                | GPUTextureUsage.COPY_DST
-                | GPUTextureUsage.RENDER_ATTACHMENT,
-        })
-        device.queue.copyExternalImageToTexture(
-            { source: vectorFieldImg, flipY: true },
-            { texture: vectorField },
-            { width: vectorFieldImg.width, height: vectorFieldImg.height },
-        )
-
-        const vectorFieldSampler = device.createSampler({
-            addressModeU: 'repeat',
-            addressModeV: 'repeat',
-            magFilter: 'linear',
-        })
-
-        const bindGroup = device.createBindGroup({
+        const backgroundBindGroup = device.createBindGroup({
             layout: backgroundPipeline.getBindGroupLayout(0),
             entries: [
-                { binding: 0, resource: vectorFieldSampler },
-                { binding: 1, resource: vectorField.createView() },
+                { binding: 0, resource: { buffer: backgroundParamsBuffer } },
+                { binding: 1, resource: vectorField.sampler },
+                { binding: 2, resource: vectorField.texture.createView() },
             ],
         })
 
-        const renderPassDescriptor = {
+        const backgroundRenderPassDescriptor = {
             label: 'background render pass',
             colorAttachments: [
                 {
@@ -137,21 +220,31 @@
             ],
         }
 
-        const settings = {
-            addressModeU: 'repeat',
-            addressModeV: 'repeat',
-            magFilter: 'linear',
-        }
+        /*
+        const particlesModule = device.createShaderModule({
+            label: 'particles',
+            code: `
+                struct Particle {
+
+                }
+                struct Params {
+                    timeDelta: f32,
+                    timeAcc: f32,
+                    windSpeed: f32,
+                }
+            `,
+        })
+        */
 
         function render() {
-            renderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView()
+            backgroundRenderPassDescriptor.colorAttachments[0].view = context.getCurrentTexture().createView()
 
             const encoder = device.createCommandEncoder({
                 label: 'background encoder',
             })
-            const pass = encoder.beginRenderPass(renderPassDescriptor)
+            const pass = encoder.beginRenderPass(backgroundRenderPassDescriptor)
             pass.setPipeline(backgroundPipeline)
-            pass.setBindGroup(0, bindGroup)
+            pass.setBindGroup(0, backgroundBindGroup)
             pass.draw(6)
             pass.end()
 
