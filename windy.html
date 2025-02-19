@@ -21,7 +21,7 @@
 </head>
 
 <body>
-    <canvas onclick="window.location.reload()" width="1080" height="2400"></canvas>
+    <canvas onclick="window.location.reload()"></canvas>
     <script type="importmap">
         {
             "imports": {
@@ -47,6 +47,9 @@
         const device = await adapter.requestDevice()
 
         const canvas = document.querySelector('canvas')
+        canvas.width = window.innerWidth
+        canvas.height = window.innerHeight
+
         const context = canvas.getContext('webgpu')
         const presentationFormat = navigator.gpu.getPreferredCanvasFormat()
 
@@ -190,7 +193,7 @@
                 let c = 43758.5453;
                 let dt = dot(co.xy, vec2f(a,b));
                 let sn = fract(dt / 3.14) * 3.14;
-                return fract(sin(sn) * c);
+                return fract(sin(sn) * c)*2;
             }
         `
 
@@ -236,15 +239,6 @@
             ],
         })
 
-        // takes the particle system buffer as input, draws particles into the trail buffer
-        const particleShader = `
-        `
-
-        const particleModule = device.createShaderModule({
-            label: 'particle shader',
-            code: particleShader,
-        })
-
         // takes a trail buffer as input, fades out the g component into a new buffer
         const trailShader = `
             struct Params {
@@ -254,7 +248,7 @@
                 fadeDecay: f32,
             }
 
-            struct Vertex {
+            struct VertexOutput {
                 @builtin(position) position: vec4f,
                 @location(0) texcoord: vec2f,
             }
@@ -263,7 +257,7 @@
             @group(0) @binding(1) var trailSampler: sampler;
             @group(0) @binding(2) var trail: texture_2d<f32>;
 
-            @vertex fn vs(@builtin(vertex_index) idx: u32) -> Vertex {
+            @vertex fn vs(@builtin(vertex_index) idx: u32) -> VertexOutput {
                 let xy = array(
                     vec2f(-1, -1), // triangle 1: bottom-left
                     vec2f( 1, -1), // triangle 1: bottom-right
@@ -272,13 +266,13 @@
                     vec2f( 1, -1), // triangle 2: bottom-right
                     vec2f( 1,  1), // triangle 2: top-right
                 )[idx];
-                var v: Vertex;
+                var v: VertexOutput;
                 v.position = vec4f(xy * params.scale, 0.0, 1.0);
                 v.texcoord = xy;
                 return v;
             }
 
-            @fragment fn fs(v: Vertex) -> @location(0) vec4f {
+            @fragment fn fs(v: VertexOutput) -> @location(0) vec4f {
                 var color = textureSample(trail, trailSampler, v.texcoord);
                 color.g *= params.fadeDecay;
                 return color;
@@ -305,7 +299,7 @@
         const trailTextureDesc = {
             size: [canvas.width, canvas.height, 1],
             dimension: '2d',
-            format: 'rg16float',
+            format: 'rgba16float',
             usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.RENDER_ATTACHMENT,
         }
 
@@ -333,6 +327,143 @@
         let trailBindGroupPing = null
         let trailBindGroupPong = null
 
+        // TODO: fix trails not drawing
+
+        // takes the particle system buffer as input, draws particles into the trail buffer
+        const particleShader = `
+            struct Particle {
+                position: vec2f,
+                life: f32,
+                unused: f32,
+            }
+
+            struct Params {
+                // TODO: transform (multiply v.position)
+                resolution: vec2f, // width,height
+
+                particleSize: f32,
+                particleOpacity: f32,
+            }
+
+            struct VertexOutput {
+                @builtin(position) position: vec4f,
+                @location(1) pointCoord: vec2f, // where within the point the fragment is [0, 1]
+                @location(2) color: vec4f,
+            }
+
+            @group(0) @binding(0) var<uniform> params : Params;
+            @group(0) @binding(1) var<storage, read> particles: array<Particle>;
+
+            @vertex fn vs(@location(0) particle: u32, @builtin(vertex_index) idx: u32) -> VertexOutput {
+                var v: VertexOutput;
+                v.pointCoord = array(
+                    vec2f(-1, -1), // triangle 1: bottom-left
+                    vec2f( 1, -1), // triangle 1: bottom-right
+                    vec2f(-1,  1), // triangle 1: top-left
+                    vec2f(-1,  1), // triangle 2: top-left
+                    vec2f( 1, -1), // triangle 2: bottom-right
+                    vec2f( 1,  1), // triangle 2: top-right
+                )[idx];
+                v.position = vec4f(particles[particle].position + v.pointCoord*params.particleSize/params.resolution, 0.0, 1.0);
+                v.color = vec4f(1.0);
+                v.color.r = step(0.7, rand(vec2f(f32(particle)))); // 70% use slow color, rest use fast color
+                v.color.g *= smoothstep(0.0, 0.05, 1.0 - particles[particle].life); // initial opacity for trail based on life
+                v.color.g *= smoothstep(0.0, .25, particles[particle].life);
+                return v;
+            }
+
+            @fragment fn fs(v: VertexOutput) -> @location(0) vec4f {
+                var color = v.color;
+                color.a = 1.-smoothstep(0.1, 1., v.pointCoord.x*v.pointCoord.x + v.pointCoord.y*v.pointCoord.y); // make the points round by fading out the edges
+                color.a *= params.particleOpacity;
+                return color;
+            }
+
+            fn rand(co: vec2f) -> f32 { // TODO: fixme: rand isn't really that random
+                let a = 12.9898;
+                let b = 78.233;
+                let c = 43758.5453;
+                let dt = dot(co.xy, vec2f(a,b));
+                let sn = fract(dt / 3.14) * 3.14;
+                return fract(sin(sn) * c)*2;
+            }
+        `
+
+        const particleModule = device.createShaderModule({
+            label: 'particle shader',
+            code: particleShader,
+        })
+
+        const particleShaderDefs = makeShaderDataDefinitions(particleShader)
+        const particleParams = makeStructuredView(particleShaderDefs.uniforms.params)
+
+        const particleParamsBuffer = device.createBuffer({
+            size: particleParams.arrayBuffer.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+        })
+        const setParticleParams = data => {
+            particleParams.set(data)
+            device.queue.writeBuffer(particleParamsBuffer, 0, particleParams.arrayBuffer)
+        }
+
+        const particleVertex = new Uint32Array(PARTICLES_COUNT)
+        for (let i = 0; i < PARTICLES_COUNT; i++) {
+            particleVertex[i] = i;
+        }
+        const particleVertexBuffer = device.createBuffer({
+            label: 'particle vertex buffer vertices',
+            size: particleVertex.byteLength,
+            usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+        })
+        device.queue.writeBuffer(particleVertexBuffer, 0, particleVertex)
+
+        const particlePipeline = device.createRenderPipeline({
+            label: 'particle pipeline',
+            layout: 'auto',
+            vertex: {
+                module: particleModule,
+                buffers: [
+                    {
+                        arrayStride: 4,
+                        stepMode: 'instance',
+                        attributes: [
+                            {
+                                shaderLocation: 0,
+                                offset: 0,
+                                format: 'uint32',
+                            },
+                        ],
+                    },
+                ],
+            },
+            fragment: {
+                module: particleModule,
+                targets: [
+                    {
+                        format: trailTextureDesc.format,
+                        blend: {
+                            color: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                            },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                            },
+                        },
+                    },
+                ],
+            },
+        })
+
+        const particleBindGroup = device.createBindGroup({
+            layout: particlePipeline.getBindGroupLayout(0),
+            entries: [
+                { binding: 0, resource: { buffer: particleParamsBuffer } },
+                { binding: 1, resource: { buffer: particlesBuffer } },
+            ],
+        })
+
         // draws the wallpaper (background plus streamlines)
         const backgroundShader = `
             struct Params {
@@ -342,11 +473,11 @@
 
                 colorBackground1: vec3f, // r,g,b
                 colorBackground2: vec3f, // r,g,b
-                colorParticleSlow: vec3f, // r,g,b
-                colorParticleFast: vec3f, // r,g,b
+                colorParticleSlow: vec4f, // r,g,b,a
+                colorParticleFast: vec4f, // r,g,b,a
             }
 
-            struct Vertex {
+            struct VertexOutput {
                 @builtin(position) position: vec4f,
                 @location(0) texcoord: vec2f,
             }
@@ -354,8 +485,10 @@
             @group(0) @binding(0) var<uniform> params : Params;
             @group(0) @binding(1) var vectorFieldSampler: sampler;
             @group(0) @binding(2) var vectorField: texture_2d<f32>;
+            @group(0) @binding(3) var particleSampler: sampler;
+            @group(0) @binding(4) var particleTexture: texture_2d<f32>;
 
-            @vertex fn vs(@builtin(vertex_index) idx: u32) -> Vertex {
+            @vertex fn vs(@builtin(vertex_index) idx: u32) -> VertexOutput {
                 let xy = array(
                     vec2f(-1, -1), // triangle 1: bottom-left
                     vec2f( 1, -1), // triangle 1: bottom-right
@@ -364,16 +497,17 @@
                     vec2f( 1, -1), // triangle 2: bottom-right
                     vec2f( 1,  1), // triangle 2: top-right
                 )[idx];
-                var v: Vertex;
+                var v: VertexOutput;
                 v.position = vec4f(xy * params.scale, 0.0, 1.0);
                 v.texcoord = xy / 2. + .5; // xy[-1,1] -> xy[0,1]
                 return v;
             }
 
-            @fragment fn fs(v: Vertex) -> @location(0) vec4f {
+            @fragment fn fs(v: VertexOutput) -> @location(0) vec4f {
                 let color = vec4(mix(params.colorBackground1, params.colorBackground2, windSpeedNorm(v.texcoord)), 1.0);
-                // TODO: particles
-                return color;
+                let particle = textureSample(particleTexture, particleSampler, v.texcoord);
+                let particleColor = mix(params.colorParticleSlow, params.colorParticleFast, particle.r); // particle.r = 1 if fast, 0 if slow
+                return mix(color, particleColor, particleColor.a*particle.a*particle.g); // a*g = alpha*life
             }
 
             fn windSpeed(uv: vec2f) -> vec3f {
@@ -421,14 +555,8 @@
             },
         })
 
-        const backgroundBindGroup = device.createBindGroup({
-            layout: backgroundPipeline.getBindGroupLayout(0),
-            entries: [
-                { binding: 0, resource: { buffer: backgroundParamsBuffer } },
-                { binding: 1, resource: vectorField.sampler },
-                { binding: 2, resource: vectorField.texture.createView() },
-            ],
-        })
+        let backgroundBindGroupPing
+        let backgroundBindGroupPong
 
         const backgroundRenderPassDescriptor = {
             label: 'background render pass',
@@ -442,8 +570,15 @@
         }
 
         let first = true
+        let timeAcc = 0
         function render(millis) {
+            const timeDelta = 1/18
+
+            // TODO: rest of render logic
+
             if (first) { // TODO: handle resize too
+                timeAcc = 0
+
                 vectorField.setRegion(75, canvas.width, canvas.height, -75.7, 45.4)
 
                 setParticlesParams({
@@ -451,10 +586,16 @@
                     scale: [1.0, 1.0],
                     count: PARTICLES_COUNT,
                     aspectRatio: canvas.height / canvas.width,
-                    timeDelta: 1/18,
-                    timeAcc: 0,
+                    timeDelta: timeDelta,
+                    timeAcc: timeAcc,
                     windSpeed: 0.1,
                     particleLife: 8.0,
+                })
+
+                setParticleParams({
+                    resolution: [canvas.width, canvas.height],
+                    particleSize: 3.0,
+                    particleOpacity: 0.6,
                 })
 
                 setTrailParams({
@@ -467,8 +608,8 @@
                     vectorFieldBounds: vectorField.region,
                     colorBackground1: [0.102, 0.035, 0.035],
                     colorBackground2: [0.271, 0.090, 0.090],
-                    colorParticleSlow: [0.102, 0.035, 0.035],
-                    colorParticleFast: [0.271, 0.090, 0.090],
+                    colorParticleSlow: [0.576, 0.192, 0.192, 0.25],
+                    colorParticleFast: [0.792, 0.376, 0.376, 0.30],
                 })
 
                 trailTextureDesc.size[0] = canvas.width
@@ -476,6 +617,8 @@
 
                 trailTexturePing = device.createTexture(trailTextureDesc)
                 trailTexturePong = device.createTexture(trailTextureDesc)
+
+                // TODO: split up bind groups
 
                 trailBindGroupPing = device.createBindGroup({
                     layout: trailPipeline.getBindGroupLayout(0),
@@ -494,9 +637,34 @@
                         { binding: 2, resource: trailTexturePong.createView() },
                     ],
                 })
+
+                backgroundBindGroupPing = device.createBindGroup({
+                    layout: backgroundPipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: backgroundParamsBuffer } },
+                        { binding: 1, resource: vectorField.sampler },
+                        { binding: 2, resource: vectorField.texture.createView() },
+                        { binding: 3, resource: trailSampler },
+                        { binding: 4, resource: trailTexturePing.createView() },
+                    ],
+                })
+
+                backgroundBindGroupPong = device.createBindGroup({
+                    layout: backgroundPipeline.getBindGroupLayout(0),
+                    entries: [
+                        { binding: 0, resource: { buffer: backgroundParamsBuffer } },
+                        { binding: 1, resource: vectorField.sampler },
+                        { binding: 2, resource: vectorField.texture.createView() },
+                        { binding: 3, resource: trailSampler },
+                        { binding: 4, resource: trailTexturePong.createView() },
+                    ],
+                })
             }
 
-            // TODO: update particles timeAcc, timeDelta
+            setParticlesParams({
+                timeDelta: timeDelta,
+                timeAcc: timeAcc,
+            })
 
             const encoder = device.createCommandEncoder()
 
@@ -524,7 +692,21 @@
             trailPass.draw(6)
             trailPass.end()
 
-            // TODO: particle render pass
+            const particlePass = encoder.beginRenderPass({
+                label: 'particle render pass',
+                colorAttachments: [
+                    {
+                        view: (trailPingPong ? trailTexturePong : trailTexturePing).createView(),
+                        loadOp: 'load',
+                        storeOp: 'store',
+                    },
+                ],
+            })
+            particlePass.setPipeline(particlePipeline)
+            particlePass.setVertexBuffer(0, particleVertexBuffer)
+            particlePass.setBindGroup(0, particleBindGroup)
+            particlePass.draw(6, PARTICLES_COUNT)
+            particlePass.end()
 
             const backgroundPass = encoder.beginRenderPass({
                 label: 'background render pass',
@@ -538,12 +720,13 @@
                 ],
             })
             backgroundPass.setPipeline(backgroundPipeline)
-            backgroundPass.setBindGroup(0, backgroundBindGroup)
+            backgroundPass.setBindGroup(0, trailPingPong ? backgroundBindGroupPong : backgroundBindGroupPing)
             backgroundPass.draw(6)
             backgroundPass.end()
 
             device.queue.submit([encoder.finish()])
 
+            timeAcc += timeDelta
             trailPingPong = !trailPingPong
             first = false
             requestAnimationFrame(render)
