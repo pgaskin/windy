@@ -4,18 +4,18 @@
 
 **Android live wallpaper visualizing local wind patterns.**
 
-The shaders are based on the official Pixel windy live wallpaper, but this has:
+The shaders are inspired by the official Pixel windy live wallpaper, but rewritten from scratch.
 
 - Completely rewritten Java code.
+- Completely rewritten shaders.
+- Modern render pipeline using WebGPU.
+- Correct rendering on newer devices.
 - More color schemes.
 - Updated wind data (the official data was last updated in 2019).
 - Better location handling.
 - Lower memory and CPU usage.
 - Updated libGDX.
 - Other fixes.
-
-> [!NOTE]
-> On some devices (e.g., the Pixel 8), the shaders are buggy, causing the lines to appear jagged or straight left/right/up/down. I'm still working on figuring out the root cause when I have time.
 
 [**`Download`**](https://github.com/pgaskin/windy/releases/latest)
 
