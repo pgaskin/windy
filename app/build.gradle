@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = 'net.pgaskin.windy'
     compileSdk 36
+    ndkVersion "28.2.13676358"
 
     defaultConfig {
         applicationId "net.pgaskin.windy"
@@ -52,71 +53,37 @@ android {
     }
 }
 
-def rustDir = rootProject.file(".")
-def jniLibsDir = file("src/main/jniLibs")
-
-tasks.register("cargoBuildNative", Exec) {
-    workingDir = rustDir
-
-    doFirst {
-        // get target abis
-        Set<String> abiFilters = [] as Set
-        if (android.defaultConfig.ndk.abiFilters != null) {
-            abiFilters.addAll(android.defaultConfig.ndk.abiFilters)
-        }
-        android.productFlavors.configureEach { flavor ->
-            if (flavor.ndk.abiFilters != null) {
-                abiFilters.addAll(flavor.ndk.abiFilters)
-            }
-        }
-        if (abiFilters.isEmpty()) {
-            throw new GradleException("NDK abiFilters must be set.")
-        }
-
-        // get ndk path
-        def sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
-        if (!sdkDir) {
-            sdkDir = androidComponents.sdkComponents.sdkDirectory.get().asFile.absolutePath
-        }
-        def ndkDir = System.getenv("ANDROID_NDK_HOME") ?: System.getenv("ANDROID_NDK_ROOT")
-        if (!ndkDir && sdkDir) {
-            def ndkRoot = new File(sdkDir, "ndk")
-            def versions = ndkRoot.listFiles()?.findAll { it.isDirectory() }?.sort { it.name }
-            if (versions) {
-                ndkDir = versions.last().absolutePath
-            }
-        }
-        if (ndkDir != null) {
-            environment "ANDROID_NDK_HOME", ndkDir
-        }
-
-        // get min sdk version
-        def minSdkVersion = android.defaultConfig.minSdk
-        if (minSdkVersion instanceof com.android.build.api.variant.AndroidVersion) {
-            minSdkVersion = minSdkVersion.apiLevel
-        }
-
-        // configure cargo build
-        def cmd = ["cargo", "ndk"]
-        abiFilters.each { cmd += ["-t", it] }
-        cmd += [
-            "--platform", "${minSdkVersion}",
-            "--output-dir", jniLibsDir.absolutePath,
-            "build",
-            "--locked",
-            "--release",
-            "--package", "windy-wallpaper-android",
-        ]
-        def env = [
-                "CARGO_TERM_PROGRESS_WHEN": "never",
-                "CARGO_TERM_COLOR"        : "never"
-        ]
-        setEnvironment(System.getenv() + env)
-        setCommandLine(cmd)
+androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+    def cap = variant.name.substring(0, 1).toUpperCase() + variant.name.substring(1)
+    def genThemes = tasks.register("generate${cap}Themes", GenerateThemesTask) {
+        themeConfig.set(rootProject.file("core/src/config.rs"))
     }
+    variant.sources.java?.addGeneratedSourceDirectory(genThemes) { it.javaOutputDir }
+    variant.sources.res?.addGeneratedSourceDirectory(genThemes) { it.resOutputDir }
+    variant.sources.manifests.addGeneratedManifestFile(genThemes) { it.manifestOutput }
+}
 
-    // cargo does its own incremental builds
-    outputs.upToDateWhen { false }
+tasks.register("cargoBuildNative", CargoBuildTask) {
+    workspaceDir.set(rootProject.layout.projectDirectory)
+    outputDir.set(layout.projectDirectory.dir("src/main/jniLibs"))
+    cargoPackage.set("windy-wallpaper-android")
+    ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+    abiFilters.set(provider {
+        Set<String> abis = [] as Set
+        if (android.defaultConfig.ndk.abiFilters != null) {
+            abis.addAll(android.defaultConfig.ndk.abiFilters)
+        }
+        android.productFlavors.each { flavor ->
+            if (flavor.ndk.abiFilters != null) {
+                abis.addAll(flavor.ndk.abiFilters)
+            }
+        }
+        abis
+    })
+    minSdkVersion.set(provider {
+        def v = android.defaultConfig.minSdk
+        (v instanceof com.android.build.api.variant.AndroidVersion) ? v.apiLevel : v
+    })
 }
 
 tasks.configureEach { task ->
@@ -126,5 +93,194 @@ tasks.configureEach { task ->
 }
 
 tasks.named("clean").configure {
-    delete jniLibsDir
+    delete file("src/main/jniLibs")
+}
+
+import javax.inject.Inject
+
+abstract class CargoBuildTask extends DefaultTask {
+    CargoBuildTask() {
+        // cargo does its own incremental builds
+        outputs.upToDateWhen { false }
+    }
+
+    @Input
+    abstract SetProperty<String> getAbiFilters()
+
+    @Input
+    abstract Property<Integer> getMinSdkVersion()
+
+    @Input
+    abstract Property<String> getCargoPackage()
+
+    @Internal
+    abstract DirectoryProperty getNdkDirectory()
+
+    @Internal
+    abstract DirectoryProperty getWorkspaceDir()
+
+    @Internal
+    abstract DirectoryProperty getOutputDir()
+
+    @Inject
+    abstract ExecOperations getExecOperations()
+
+    @TaskAction
+    void build() {
+        def abis = abiFilters.get()
+        if (abis.isEmpty()) {
+            throw new GradleException("NDK abiFilters must be set")
+        }
+
+        def cmd = ["cargo", "ndk"]
+        abis.each { cmd += ["-t", it] }
+        cmd += [
+            "--platform", minSdkVersion.get().toString(),
+            "--output-dir", outputDir.get().asFile.absolutePath,
+            "build",
+            "--locked",
+            "--release",
+            "--package", cargoPackage.get(),
+        ]
+
+        def env = new LinkedHashMap<String, String>(System.getenv())
+        env.put("ANDROID_NDK_HOME", ndkDirectory.get().asFile.absolutePath)
+        env.put("CARGO_TERM_PROGRESS_WHEN", "never")
+        env.put("CARGO_TERM_COLOR", "never")
+
+        execOperations.exec {
+            it.workingDir = workspaceDir.get().asFile
+            it.commandLine = cmd
+            it.environment = env
+        }
+    }
+}
+
+abstract class GenerateThemesTask extends DefaultTask {
+    static final String PKG = "net.pgaskin.windy"
+    static final String OUTER = "WindyWallpaperService"
+    static final String BASE = "WindyWallpaperServiceBase"
+
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getThemeConfig()
+
+    @OutputDirectory
+    abstract DirectoryProperty getJavaOutputDir()
+
+    @OutputDirectory
+    abstract DirectoryProperty getResOutputDir()
+
+    @OutputFile
+    abstract RegularFileProperty getManifestOutput()
+
+    @TaskAction
+    void generate() {
+        def themes = parseThemes(themeConfig.get().asFile.text)
+
+        def javaRoot = javaOutputDir.get().asFile
+        javaRoot.deleteDir()
+        def pkgDir = new File(javaRoot, PKG.replace('.', '/'))
+        pkgDir.mkdirs()
+        new File(pkgDir, "${OUTER}.java").setText(renderJava(themes), "UTF-8")
+
+        def resRoot = resOutputDir.get().asFile
+        resRoot.deleteDir()
+        def xmlDir = new File(resRoot, "xml")
+        xmlDir.mkdirs()
+        themes.each { t ->
+            new File(xmlDir, "${t.resName}.xml").setText(renderWallpaperXml(t), "UTF-8")
+        }
+
+        def manifest = manifestOutput.get().asFile
+        manifest.parentFile.mkdirs()
+        manifest.setText(renderManifest(themes), "UTF-8")
+    }
+
+    static List<Map> parseThemes(String src) {
+        def m = (src =~ /(?s)pub const ALL\s*:[^=]*=\s*&\[(.*?)]\s*;/)
+        if (!m.find()) {
+            throw new GradleException("Could not find `Theme::ALL` array in config.rs")
+        }
+        def themes = []
+        m.group(1).eachLine { line ->
+            def entry = (line =~ /Theme::([A-Z0-9_]+)\s*,/)
+            if (!entry.find()) {
+                return
+            }
+            def ident = entry.group(1)
+            def label = (line =~ /\/\/\s*(\S.*?)\s*$/)
+            if (!label.find()) {
+                throw new GradleException("Theme `Theme::${ident}` is missing `// Label` comment in config.rs")
+            }
+            themes << [
+                index    : themes.size(),
+                className: toPascal(ident),
+                resName  : "windy_" + ident.toLowerCase().replace("_", ""),
+                label    : label.group(1),
+            ]
+        }
+        if (themes.isEmpty()) {
+            throw new GradleException("No themes parsed from `Theme::ALL` in config.rs")
+        }
+        return themes
+    }
+
+    static String toPascal(String ident) {
+        ident.split("_").collect { it.isEmpty() ? it : it[0].toUpperCase() + it.substring(1).toLowerCase() }.join("")
+    }
+
+    static String renderJava(List<Map> themes) {
+        def sb = new StringBuilder()
+        sb << "package ${PKG};\n\n"
+        sb << "public abstract class ${OUTER} extends ${BASE} {\n"
+        themes.eachWithIndex { t, i ->
+            if (i > 0) sb << "\n"
+            sb << "    public static final class ${t.className} extends ${OUTER} {\n"
+            sb << "        @Override protected int themeIndex() { return ${t.index}; }\n"
+            sb << "    }\n"
+        }
+        sb << "}\n"
+        sb.toString()
+    }
+
+    static String renderWallpaperXml(Map t) {
+        """\
+<?xml version="1.0" encoding="utf-8"?>
+<wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
+    android:thumbnail="@drawable/${t.resName}"
+    android:supportsMultipleDisplays="true" />
+"""
+    }
+
+    static String renderManifest(List<Map> themes) {
+        def sb = new StringBuilder()
+        sb << '<?xml version="1.0" encoding="utf-8"?>\n'
+        sb << '<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n'
+        sb << '    <application>\n'
+        themes.eachWithIndex { t, i ->
+            if (i > 0) sb << '\n'
+            sb << '        <service\n'
+            sb << "            android:name=\"${PKG}.${OUTER}\$${t.className}\"\n"
+            sb << '            android:directBootAware="true"\n'
+            sb << '            android:enabled="true"\n'
+            sb << '            android:exported="true"\n'
+            sb << "            android:label=\"${xmlAttr(t.label)}\"\n"
+            sb << '            android:permission="android.permission.BIND_WALLPAPER">\n'
+            sb << '            <intent-filter>\n'
+            sb << '                <action android:name="android.service.wallpaper.WallpaperService" />\n'
+            sb << '            </intent-filter>\n'
+            sb << '            <meta-data\n'
+            sb << '                android:name="android.service.wallpaper"\n'
+            sb << "                android:resource=\"@xml/${t.resName}\" />\n"
+            sb << '        </service>\n'
+        }
+        sb << '    </application>\n'
+        sb << '</manifest>\n'
+        sb.toString()
+    }
+
+    static String xmlAttr(String s) {
+        s.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+    }
 }

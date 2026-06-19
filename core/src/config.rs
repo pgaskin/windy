@@ -143,18 +143,22 @@ impl Theme {
         wallpaper_color: rgb8(0x96241AFF),
     };
 
-    // indexes must match app
+    // The order of this array defines the theme index shared by the renderer
+    // and the Android app. The trailing `// Label` comment on each entry is the
+    // wallpaper picker label; the app's Gradle theme codegen parses this array
+    // (see app/build.gradle) to generate the wallpaper services, res/xml
+    // configs, and manifest entries. Keep a `// Label` comment on every entry.
     pub const ALL: &'static [Theme] = &[
-        Theme::BLUE,
-        Theme::GREEN,
-        Theme::BLUSH,
-        Theme::MIDNIGHT,
-        Theme::MAROON,
-        Theme::SEPIA,
-        Theme::SUNSET_WHIRLED,
-        Theme::TURQUOISE_WHIRLED,
-        Theme::SKY_BLUE_WHIRLED,
-        Theme::SPARK_WHIRLED,
+        Theme::BLUE,              // Windy, Blue
+        Theme::GREEN,             // Windy, Green
+        Theme::BLUSH,             // Windy, Blush
+        Theme::MIDNIGHT,          // Windy, Midnight
+        Theme::MAROON,            // Windy, Maroon
+        Theme::SEPIA,             // Windy, Sepia
+        Theme::SUNSET_WHIRLED,    // Your whirled, Sunset
+        Theme::TURQUOISE_WHIRLED, // Your whirled, Turquoise
+        Theme::SKY_BLUE_WHIRLED,  // Your whirled, Sky blue
+        Theme::SPARK_WHIRLED,     // Your whirled, Spark
     ];
 }
 

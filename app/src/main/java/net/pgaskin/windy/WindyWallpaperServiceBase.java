@@ -15,7 +15,14 @@ import android.view.SurfaceHolder;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class WindyWallpaperService extends WallpaperService {
+/**
+ * Engine and lifecycle for the Windy wallpaper services.
+ *
+ * The concrete per-theme services ({@code WindyWallpaperService} and its nested
+ * subclasses) are generated from {@code core/src/config.rs} by the app's Gradle
+ * theme codegen; see {@code app/build.gradle}.
+ */
+public abstract class WindyWallpaperServiceBase extends WallpaperService {
     private static final String TAG = "WindyWallpaperService";
 
     private static final int FPS_HIGH = 60; // parallax
@@ -226,7 +233,7 @@ public abstract class WindyWallpaperService extends WallpaperService {
         }
 
         private void applyWindField(NativeRenderer renderer) {
-            final WindField.Snapshot snap = WindField.snapshot(WindyWallpaperService.this);
+            final WindField.Snapshot snap = WindField.snapshot(WindyWallpaperServiceBase.this);
             renderer.setWindField(snap.rgba, snap.width, snap.height);
             windFieldSeq = snap.seq;
         }
@@ -237,7 +244,7 @@ public abstract class WindyWallpaperService extends WallpaperService {
                 locationFlowPending = false;
             }
             if (!cachedOnly) {
-                final float[] loc = LocationActivity.updateLocation(WindyWallpaperService.this, requestIfMissing);
+                final float[] loc = LocationActivity.updateLocation(WindyWallpaperServiceBase.this, requestIfMissing);
                 if (loc != null) {
                     lastLocation = loc;
                 }
@@ -253,47 +260,5 @@ public abstract class WindyWallpaperService extends WallpaperService {
             } catch (InterruptedException ignored) {
             }
         }
-    }
-
-    // TODO: codegen
-
-    public static final class Blue extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 0; }
-    }
-
-    public static final class Green extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 1; }
-    }
-
-    public static final class Blush extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 2; }
-    }
-
-    public static final class Midnight extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 3; }
-    }
-
-    public static final class Maroon extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 4; }
-    }
-
-    public static final class Sepia extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 5; }
-    }
-
-    public static final class SunsetWhirled extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 6; }
-    }
-
-    public static final class TurquoiseWhirled extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 7; }
-    }
-
-    public static final class SkyBlueWhirled extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 8; }
-    }
-
-    public static final class SparkWhirled extends WindyWallpaperService {
-        @Override protected int themeIndex() { return 9; }
     }
 }
