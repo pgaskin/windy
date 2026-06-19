@@ -10,14 +10,14 @@ jobs:
     name: App
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v3
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '25'
           cache: gradle
       - run: ./gradlew app:assembleRelease
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v7
         with:
           name: app-release
           path: app/build/outputs/apk/release/app-release-unsigned.apk
@@ -30,7 +30,7 @@ jobs:
     needs:
       - app
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v7
         with:
           name: app-release
       - name: Write keystore
@@ -46,7 +46,7 @@ jobs:
       - name: Verify APK signature
         run: $ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs app-release.apk
       - name: Create release
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         id: create-release
         with:
           retries: 3
@@ -60,7 +60,7 @@ jobs:
             })
             return release.data.id
       - name: Upload release asset
-        uses: actions/github-script@v6
+        uses: actions/github-script@v9
         with:
           retries: 3
           script: |
