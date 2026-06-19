@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023-2026 Patrick Gaskin
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 // Command windyapi generates and serves wind field images for the Windy live
 // wallpaper.
 package main
