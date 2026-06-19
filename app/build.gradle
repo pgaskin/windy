@@ -4,12 +4,12 @@ plugins {
 
 android {
     namespace = 'net.pgaskin.windy'
-    compileSdk 33
+    compileSdk 36
 
     defaultConfig {
         applicationId "net.pgaskin.windy"
         minSdk 30
-        targetSdk 33
+        targetSdk 36
         versionCode 7
         versionName "7"
 
@@ -32,8 +32,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.toVersion("8")
+        targetCompatibility = JavaVersion.toVersion("8")
     }
 
     sourceSets {
