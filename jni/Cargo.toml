@@ -1,0 +1,21 @@
+[package]
+name = "windy-wallpaper-android"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Android bindings for the Windy live wallpaper"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+windy-wallpaper-core = { path = "../core" }
+wgpu.workspace = true
+log.workspace = true
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.22"
+ndk = "0.9"
+raw-window-handle = "0.6" # match workspace wgpu 29
+android_logger = "0.15"
+pollster = "0.4"

@@ -2,30 +2,33 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package net.pgaskin.windy;
 
+import android.app.WallpaperColors;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
 import android.os.PowerManager;
+import android.service.wallpaper.WallpaperService;
 import android.util.Log;
-import com.badlogic.gdx.Application;
-import com.badlogic.gdx.backends.android.AndroidApplicationConfiguration;
-import com.badlogic.gdx.backends.android.AndroidLiveWallpaperService;
-import com.badlogic.gdx.graphics.Color;
-import com.badlogic.gdx.graphics.Texture;
-import com.badlogic.gdx.math.Vector2;
+import android.view.SurfaceHolder;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public abstract class WindyWallpaperService extends AndroidLiveWallpaperService implements WindyWallpaper.Provider {
+public abstract class WindyWallpaperService extends WallpaperService {
     private static final String TAG = "WindyWallpaperService";
-    protected final WindyWallpaper.Config config = new WindyWallpaper.Config();
+
+    private static final int FPS_HIGH = 60; // parallax
+    private static final int FPS_NORMAL = 13;
+    private static final int FPS_POWERSAVE = 3;
+
+    protected abstract int themeIndex();
 
     private final AtomicBoolean isPowerSaveMode = new AtomicBoolean();
     private final BroadcastReceiver powerSaveReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            final PowerManager powerManager = (PowerManager) WindyWallpaperService.this.getSystemService(Context.POWER_SERVICE);
+            final PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
             final boolean enabled = powerManager.isPowerSaveMode();
             Log.d(TAG, "got power saving mode update (enabled: " + enabled + ")");
             isPowerSaveMode.set(enabled);
@@ -33,24 +36,11 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
     };
 
     @Override
-    public void onCreateApplication() {
-        super.onCreateApplication();
-        app.setLogLevel(Application.LOG_INFO);
-
-        final AndroidApplicationConfiguration cfg = new AndroidApplicationConfiguration();
-        cfg.useAccelerometer = false;
-        cfg.useCompass = false;
-        cfg.useGyroscope = false;
-        cfg.numSamples = 2;
-        cfg.r = cfg.g = cfg.b = cfg.a = 8;
-        cfg.depth = 16;
-
+    public void onCreate() {
+        super.onCreate();
         WindFieldUpdateService.scheduleStartup(this);
         WindFieldUpdateService.schedulePeriodic(this);
-
         registerReceiver(powerSaveReceiver, new IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED));
-
-        initialize(new WindyWallpaper(config, this), cfg);
     }
 
     @Override
@@ -60,141 +50,250 @@ public abstract class WindyWallpaperService extends AndroidLiveWallpaperService 
     }
 
     @Override
-    public Windy.PowerSaveModeProvider createPowerSaveModeProvider() {
-        return isPowerSaveMode::get;
+    public Engine onCreateEngine() {
+        return new WindyEngine();
     }
 
-    @Override
-    public Windy.UserLocationProvider createUserLocationProvider() {
-        return new Windy.UserLocationProvider() {
-            private Vector2 location;
-            private boolean locationFlowPending = !LocationActivity.getLocationFlowCompleteCached();
+    private final class WindyEngine extends Engine {
+        private RenderThread thread;
 
-            @Override
-            public Vector2 getLocation(boolean requestIfMissing, boolean cachedOnly) {
-                if (locationFlowPending && LocationActivity.getLocationFlowCompleteCached()) cachedOnly = locationFlowPending = false;
-                if (!cachedOnly) location = LocationActivity.updateLocation(WindyWallpaperService.this, requestIfMissing);
-                return location;
+        WindyEngine() {
+            setOffsetNotificationsEnabled(true);
+        }
+
+        @Override
+        public WallpaperColors onComputeColors() {
+            final int rgb = NativeRenderer.themeColor(themeIndex());
+            final Color c = Color.valueOf(0xFF000000 | rgb);
+            return new WallpaperColors(c, c, c);
+        }
+
+        @Override
+        public void onSurfaceCreated(SurfaceHolder holder) {
+            thread = new RenderThread(holder);
+            thread.start();
+        }
+
+        @Override
+        public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+            if (thread != null) {
+                thread.onResized(width, height);
             }
-        };
-    }
+        }
 
-    @Override
-    public Windy.WindFieldProvider createWindFieldProvider() {
-        return new Windy.WindFieldProvider() {
-            private Texture windField;
-            private int windFieldSeq;
-
-            @Override
-            public Texture swapTexture(Texture old) {
-                if (old != null && old != windField) throw new IllegalStateException("WindFieldProvider was given wrong texture");
-                if (old != null && windFieldSeq == WindField.currentSeq()) return null;
-                if (old != null) old.dispose();
-                Log.d(TAG, "applying wind field texture");
-                windFieldSeq = WindField.currentSeq();
-                windField = WindField.createTexture(WindyWallpaperService.this);
-                return windField;
+        @Override
+        public void onSurfaceDestroyed(SurfaceHolder holder) {
+            if (thread != null) {
+                thread.shutdown();
+                thread = null;
             }
-        };
-    }
+        }
 
-    public static class Blue extends WindyWallpaperService {
-        public Blue() {
-            config.slowWindColor = new Color(0.49803922f, 0.81960785f, 0.58431375f, 0.30f);
-            config.fastWindColor = new Color(0.98039216f, 0.94117650f, 0.82352940f, 0.25f);
-            config.bgColor = new Color(0x044866FF);
-            config.bgColor2 = new Color(0x0085AAFF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x085173FF);
+        @Override
+        public void onVisibilityChanged(boolean visible) {
+            if (thread != null) {
+                thread.onVisibilityChanged(visible);
+            }
+        }
+
+        @Override
+        public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
+            if (thread != null && xOffsetStep != 0 && xOffsetStep != -1) {
+                thread.onOffsetChanged(xOffset, xOffsetStep);
+            }
         }
     }
 
-    public static class Green extends WindyWallpaperService {
-        public Green() {
-            config.slowWindColor = new Color(0.50f, 0.82f, 0.18f, 0.30f);
-            config.fastWindColor = new Color(0.98f, 0.94f, 0.12f, 0.25f);
-            config.bgColor = new Color(0x044822FF);
-            config.bgColor2 = new Color(0x008533FF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x085112FF);
+    private final class RenderThread extends Thread {
+        private static final int MIN_PAGES_TO_SWIPE = 4; // matches the original
+
+        private final SurfaceHolder holder;
+
+        private volatile boolean running = true;
+        private volatile boolean visible = true;
+        private int pendingWidth, pendingHeight;
+        private boolean resized;
+
+        private float targetOffset; // [-1, 1]
+        private float easedOffset;
+        private boolean offsetDirty;
+
+        private boolean locationFlowPending = !LocationActivity.getLocationFlowCompleteCached();
+        private float[] lastLocation;
+        private int windFieldSeq = -1;
+
+        RenderThread(SurfaceHolder holder) {
+            super("WindyRender");
+            this.holder = holder;
+        }
+
+        synchronized void onResized(int width, int height) {
+            pendingWidth = width;
+            pendingHeight = height;
+            resized = true;
+            notifyAll();
+        }
+
+        synchronized void onVisibilityChanged(boolean visible) {
+            this.visible = visible;
+            notifyAll();
+        }
+
+        synchronized void onOffsetChanged(float xOffset, float xOffsetStep) {
+            // like the original
+            final int steps = (int) (1.0f / xOffsetStep);
+            final float stretch = Math.min(steps / (float) MIN_PAGES_TO_SWIPE, 1.0f);
+            targetOffset = Math.max(-1.0f, Math.min(1.0f, (xOffset - 0.5f) * 2.0f * stretch));
+            offsetDirty = true;
+            notifyAll();
+        }
+
+        void shutdown() {
+            synchronized (this) {
+                running = false;
+                notifyAll();
+            }
+            try {
+                join();
+            } catch (InterruptedException ignored) {
+            }
+        }
+
+        @Override
+        public void run() {
+            final float dpiScale = getResources().getDisplayMetrics().density;
+            NativeRenderer renderer = null;
+            try {
+                renderer = new NativeRenderer(holder.getSurface(), themeIndex(), dpiScale);
+
+                applyWindField(renderer);
+                applyLocation(renderer, true, false);
+
+                while (running) {
+                    synchronized (this) {
+                        while (running && !visible) {
+                            try {
+                                wait();
+                            } catch (InterruptedException ignored) {
+                            }
+                        }
+                        if (!running) {
+                            break;
+                        }
+                        if (resized) {
+                            renderer.resize(pendingWidth, pendingHeight);
+                            resized = false;
+                        }
+                    }
+
+                    final boolean updatedWindField = pollWindField(renderer);
+                    applyLocation(renderer, updatedWindField, !updatedWindField);
+
+                    boolean easing = false;
+                    synchronized (this) {
+                        if (offsetDirty || Math.abs(targetOffset - easedOffset) > 0.001f) {
+                            if (isPowerSaveMode.get()) {
+                                easedOffset = targetOffset;
+                            } else {
+                                easedOffset += (targetOffset - easedOffset) * 0.18f;
+                                easing = Math.abs(targetOffset - easedOffset) > 0.001f;
+                            }
+                            renderer.setOffset(easedOffset);
+                            offsetDirty = easing;
+                        }
+                    }
+
+                    renderer.render();
+
+                    final int fps = isPowerSaveMode.get() ? FPS_POWERSAVE : easing ? FPS_HIGH : FPS_NORMAL;
+                    sleepFrame(1000L / fps);
+                }
+            } catch (Throwable t) {
+                Log.e(TAG, "render thread failed", t);
+            } finally {
+                if (renderer != null) {
+                    renderer.close();
+                }
+            }
+        }
+
+        private boolean pollWindField(NativeRenderer renderer) {
+            if (WindField.currentSeq() == windFieldSeq) {
+                return false;
+            }
+            applyWindField(renderer);
+            return true;
+        }
+
+        private void applyWindField(NativeRenderer renderer) {
+            final WindField.Snapshot snap = WindField.snapshot(WindyWallpaperService.this);
+            renderer.setWindField(snap.rgba, snap.width, snap.height);
+            windFieldSeq = snap.seq;
+        }
+
+        private void applyLocation(NativeRenderer renderer, boolean requestIfMissing, boolean cachedOnly) {
+            if (locationFlowPending && LocationActivity.getLocationFlowCompleteCached()) {
+                cachedOnly = false;
+                locationFlowPending = false;
+            }
+            if (!cachedOnly) {
+                final float[] loc = LocationActivity.updateLocation(WindyWallpaperService.this, requestIfMissing);
+                if (loc != null) {
+                    lastLocation = loc;
+                }
+            }
+            if (lastLocation != null) {
+                renderer.setUserLocation(lastLocation[0], lastLocation[1]);
+            }
+        }
+
+        private void sleepFrame(long millis) {
+            try {
+                Thread.sleep(Math.max(millis, 1L));
+            } catch (InterruptedException ignored) {
+            }
         }
     }
 
-    public static class Blush extends WindyWallpaperService {
-        public Blush() {
-            config.slowWindColor = new Color(0.8509804f, 0.6901961f, 0.91764706f, 0.30f);
-            config.fastWindColor = new Color(0.8627451f, 0.9647059f, 1.00000000f, 0.50f);
-            config.bgColor = new Color(0x4078C8FF);
-            config.bgColor2 = new Color(0xD9B0EAFF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x4A7CC9FF);
-        }
+    // TODO: codegen
+
+    public static final class Blue extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 0; }
     }
 
-    public static class Midnight extends WindyWallpaperService {
-        public Midnight() {
-            config.slowWindColor = new Color(0.21568628f, 0.21960784f, 0.21568628f, 0.25f);
-            config.fastWindColor = new Color(0.72941180f, 0.74117650f, 0.73725490f, 0.30f);
-            config.bgColor = new Color(0x000000AF);
-            config.bgColor2 = new Color(0x464749FF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x101110FF);
-        }
+    public static final class Green extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 1; }
     }
 
-    public static class Maroon extends WindyWallpaperService {
-        public Maroon() {
-            config.slowWindColor = new Color(0.576f, 0.192f, 0.192f, 0.25f);
-            config.fastWindColor = new Color(0.792f, 0.376f, 0.376f, 0.30f);
-            config.bgColor = new Color(0x1A0909FF);
-            config.bgColor2 = new Color(0x451717FF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x4F1A1AFF);
-        }
+    public static final class Blush extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 2; }
     }
 
-    public static class Sepia extends WindyWallpaperService {
-        public Sepia() {
-            config.slowWindColor = new Color(0.26f, 0.16f, 0.05f, 0.25f);
-            config.fastWindColor = new Color(0.44f, 0.28f, 0.11f, 0.30f);
-            config.bgColor = new Color(0xBDA682FF);
-            config.bgColor2 = new Color(0xC49F64FF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0xD87900FF);
-        }
+    public static final class Midnight extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 3; }
     }
 
-    public static class SunsetWhirled extends WindyWallpaperService {
-        public SunsetWhirled() {
-            config.slowWindColor = new Color(0.9764706f, 0.8627451f, 0.64705884f, 0.60f);
-            config.fastWindColor = new Color(1.0000000f, 1.0000000f, 1.00000000f, 0.70f);
-            config.bgColor = new Color(0xE58186DF);
-            config.bgColor2 = new Color(0xF7B38DDF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0xE88991FF);
-        }
+    public static final class Maroon extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 4; }
     }
 
-    public static class TurquoiseWhirled extends WindyWallpaperService {
-        public TurquoiseWhirled() {
-            config.slowWindColor = new Color(0.49803922f, 0.81960785f, 0.58431375f, 0.60f);
-            config.fastWindColor = new Color(1.00000000f, 1.00000000f, 1.00000000f, 0.50f);
-            config.bgColor = new Color(0x0093B9DF);
-            config.bgColor2 = new Color(0xEFDD81DF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x0996B7FF);
-        }
+    public static final class Sepia extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 5; }
     }
 
-    public static class SkyBlueWhirled extends WindyWallpaperService {
-        public SkyBlueWhirled() {
-            config.slowWindColor = new Color(1.00000000f, 1.0000000f, 1.0000000f, 0.50f);
-            config.fastWindColor = new Color(0.95686275f, 1.0000000f, 0.5294118f, 0.25f);
-            config.bgColor = new Color(0x75AAFAFF);
-            config.bgColor2 = new Color(0xF4FF87FF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x7BAEF5FF);
-        }
+    public static final class SunsetWhirled extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 6; }
     }
 
-    public static class SparkWhirled extends WindyWallpaperService {
-        public SparkWhirled() {
-            config.slowWindColor = new Color(0.25f, 0.00f, 0.50f, 0.85f);
-            config.fastWindColor = new Color(1.00f, 0.50f, 0.00f, 0.65f);
-            config.bgColor = new Color(0x270D03FF);
-            config.bgColor2 = new Color(0x031A27FF);
-            config.wallpaperColorPrimary = config.wallpaperColorSecondary = config.wallpaperColorTertiary = new Color(0x96241AFF);
-        }
+    public static final class TurquoiseWhirled extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 7; }
+    }
+
+    public static final class SkyBlueWhirled extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 8; }
+    }
+
+    public static final class SparkWhirled extends WindyWallpaperService {
+        @Override protected int themeIndex() { return 9; }
     }
 }

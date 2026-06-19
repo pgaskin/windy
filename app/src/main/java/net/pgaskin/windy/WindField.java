@@ -5,15 +5,11 @@ package net.pgaskin.windy;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.opengl.GLES30;
-import android.opengl.GLUtils;
 import android.util.Log;
-
-import com.badlogic.gdx.graphics.Pixmap;
-import com.badlogic.gdx.graphics.Texture;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -24,20 +20,32 @@ public class WindField {
     private static final Object currentBitmapLock = new Object();
     private static Bitmap currentBitmap;
 
+    public static final class Snapshot {
+        public final byte[] rgba; // row-major rgba8888
+        public final int width;
+        public final int height;
+        public final int seq;
+
+        Snapshot(byte[] rgba, int width, int height, int seq) {
+            this.rgba = rgba;
+            this.width = width;
+            this.height = height;
+            this.seq = seq;
+        }
+    }
+
     public static int currentSeq() {
         return currentSeq.get();
     }
 
-    public static Texture createTexture(Context context) {
+    public static Snapshot snapshot(Context context) {
         synchronized (currentBitmapLock) {
             if (currentBitmap == null) {
                 Log.i(TAG, "loading initial wind field bitmap");
                 try (final InputStream is = Files.newInputStream(windCacheFile(context, false).toPath())) {
-                    if ((currentBitmap = BitmapFactory.decodeStream(is)) == null) {
-                        throw new Exception("Failed to decode cached wind field bitmap");
-                    }
+                    currentBitmap = BitmapFactory.decodeStream(is);
                 } catch (Exception ex) {
-                    // ignored
+                    // ignored; fall back to the embedded asset
                 }
                 if (currentBitmap == null) {
                     try (final InputStream is = context.getAssets().open("windy/wind_cache.png")) {
@@ -49,12 +57,19 @@ public class WindField {
                     }
                 }
             }
-            final Texture tex = new Texture(currentBitmap.getWidth(), currentBitmap.getHeight(), Pixmap.Format.RGBA8888);
-            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, tex.getTextureObjectHandle());
-            GLUtils.texImage2D(GLES30.GL_TEXTURE_2D, 0, currentBitmap, 0);
-            GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0);
-            return tex;
+            return toSnapshot(currentBitmap, currentSeq.get());
         }
+    }
+
+    private static Snapshot toSnapshot(Bitmap bitmap, int seq) {
+        final Bitmap rgbaBitmap = bitmap.getConfig() == Bitmap.Config.ARGB_8888
+                ? bitmap
+                : bitmap.copy(Bitmap.Config.ARGB_8888, false);
+        final int width = rgbaBitmap.getWidth();
+        final int height = rgbaBitmap.getHeight();
+        final byte[] rgba = new byte[width * height * 4];
+        rgbaBitmap.copyPixelsToBuffer(ByteBuffer.wrap(rgba));
+        return new Snapshot(rgba, width, height, seq);
     }
 
     private static File windCacheFile(Context context, boolean temp) {

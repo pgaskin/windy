@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2023-2026 Patrick Gaskin
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 plugins {
     id 'com.android.application'
 }
@@ -16,7 +19,10 @@ android {
         buildConfigField "String", "WIND_FIELD_API_HOST", "\"windy.api.pgaskin.net\""
         buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "360" // min
         buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL_MINIMUM", "15" // min
-        buildConfigField "boolean", "SAVE_SCREENSHOTS", "false"
+
+        ndk {
+            abiFilters "arm64-v8a", "armeabi-v7a", "x86_64"
+        }
     }
 
     buildTypes {
@@ -24,7 +30,6 @@ android {
             signingConfig = signingConfigs.debug
             buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "15" // min
             buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL_STARTUP", "1" // min
-            buildConfigField "boolean", "SAVE_SCREENSHOTS", "true"
         }
         release {
             minifyEnabled false
@@ -38,7 +43,7 @@ android {
 
     sourceSets {
         main {
-            jniLibs.srcDirs = ['libs']
+            jniLibs.srcDirs = ['src/main/jniLibs']
         }
     }
 
@@ -47,36 +52,79 @@ android {
     }
 }
 
-configurations { natives }
+def rustDir = rootProject.file(".")
+def jniLibsDir = file("src/main/jniLibs")
 
-dependencies {
-    api "com.badlogicgames.gdx:gdx:1.12.0"
-    api "com.badlogicgames.gdx:gdx-backend-android:1.12.0"
-    natives "com.badlogicgames.gdx:gdx-platform:1.12.0:natives-arm64-v8a"
-    natives "com.badlogicgames.gdx:gdx-platform:1.12.0:natives-armeabi-v7a"
-    natives "com.badlogicgames.gdx:gdx-platform:1.12.0:natives-x86_64"
-}
+tasks.register("cargoBuildNative", Exec) {
+    workingDir = rustDir
 
-tasks.register("copyAndroidNatives") {
     doFirst {
-        configurations.natives.files.each { jar ->
-            def match = jar.name =~ /natives-(.+?)\.jar$/
-            if (match.size() != 0) {
-                def arch = match[0][1]
-                def dir = file("libs/" + arch + "/")
-                dir.mkdirs()
-                copy {
-                    from zipTree(jar)
-                    into dir
-                    include "*.so"
-                }
+        // get target abis
+        Set<String> abiFilters = [] as Set
+        if (android.defaultConfig.ndk.abiFilters != null) {
+            abiFilters.addAll(android.defaultConfig.ndk.abiFilters)
+        }
+        android.productFlavors.configureEach { flavor ->
+            if (flavor.ndk.abiFilters != null) {
+                abiFilters.addAll(flavor.ndk.abiFilters)
             }
         }
+        if (abiFilters.isEmpty()) {
+            throw new GradleException("NDK abiFilters must be set.")
+        }
+
+        // get ndk path
+        def sdkDir = System.getenv("ANDROID_HOME") ?: System.getenv("ANDROID_SDK_ROOT")
+        if (!sdkDir) {
+            sdkDir = androidComponents.sdkComponents.sdkDirectory.get().asFile.absolutePath
+        }
+        def ndkDir = System.getenv("ANDROID_NDK_HOME") ?: System.getenv("ANDROID_NDK_ROOT")
+        if (!ndkDir && sdkDir) {
+            def ndkRoot = new File(sdkDir, "ndk")
+            def versions = ndkRoot.listFiles()?.findAll { it.isDirectory() }?.sort { it.name }
+            if (versions) {
+                ndkDir = versions.last().absolutePath
+            }
+        }
+        if (ndkDir != null) {
+            environment "ANDROID_NDK_HOME", ndkDir
+        }
+
+        // get min sdk version
+        def minSdkVersion = android.defaultConfig.minSdk
+        if (minSdkVersion instanceof com.android.build.api.variant.AndroidVersion) {
+            minSdkVersion = minSdkVersion.apiLevel
+        }
+
+        // configure cargo build
+        def cmd = ["cargo", "ndk"]
+        abiFilters.each { cmd += ["-t", it] }
+        cmd += [
+            "--platform", "${minSdkVersion}",
+            "--output-dir", jniLibsDir.absolutePath,
+            "build",
+            "--locked",
+            "--release",
+            "--package", "windy-wallpaper-android",
+        ]
+        def env = [
+                "CARGO_TERM_PROGRESS_WHEN": "never",
+                "CARGO_TERM_COLOR"        : "never"
+        ]
+        setEnvironment(System.getenv() + env)
+        setCommandLine(cmd)
+    }
+
+    // cargo does its own incremental builds
+    outputs.upToDateWhen { false }
+}
+
+tasks.configureEach { task ->
+    if (task.name.startsWith("merge") && task.name.endsWith("JniLibFolders")) {
+        task.dependsOn "cargoBuildNative"
     }
 }
 
-tasks.configureEach { packageTask ->
-    if (packageTask.name.contains("package")) {
-        packageTask.dependsOn "copyAndroidNatives"
-    }
+tasks.named("clean").configure {
+    delete jniLibsDir
 }

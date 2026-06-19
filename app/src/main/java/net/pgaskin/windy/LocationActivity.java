@@ -14,8 +14,6 @@ import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 
-import com.badlogic.gdx.math.Vector2;
-
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class LocationActivity extends Activity {
@@ -136,11 +134,12 @@ public class LocationActivity extends Activity {
         this.finish();
     }
 
-    public static Vector2 updateLocation(Context context, boolean requestIfMissing) {
+    /** Returns the current location as {@code {lng, lat}}, or null if unknown. */
+    public static float[] updateLocation(Context context, boolean requestIfMissing) {
         return LocationActivity.updateLocation(context, requestIfMissing, false);
     }
 
-    private static Vector2 updateLocation(Context context, boolean requestIfMissing, boolean isForeground) {
+    private static float[] updateLocation(Context context, boolean requestIfMissing, boolean isForeground) {
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 || (!isForeground && context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
             if (requestIfMissing && !LocationActivity.getLocationFlowComplete(context)) {
@@ -158,7 +157,7 @@ public class LocationActivity extends Activity {
                 final float lng = (float) Math.round(loc.getLongitude() * 10.0f) / 10.0f;
                 Log.i(TAG, "updated user location lng=" + lng + " lat=" + lat);
                 prefs.edit().putFloat("last_lng", lng).putFloat("last_lat", lat).apply();
-                return new Vector2(lng, lat);
+                return new float[]{lng, lat};
             } else {
                 Log.w(TAG, "failed to update user location");
             }
@@ -168,7 +167,7 @@ public class LocationActivity extends Activity {
         final float lat = prefs.getFloat("last_lat", 0.0f);
         if (lng != 0.0f || lat != 0.0f) {
             Log.i(TAG, "using last known location lng=" + lng + " lat=" + lat);
-            return new Vector2(lng, lat);
+            return new float[]{lng, lat};
         }
         Log.w(TAG, "no location known");
         return null;

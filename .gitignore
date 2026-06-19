@@ -8,4 +8,5 @@ local.properties
 /captures
 /app/build
 /app/libs
+/app/src/main/jniLibs
 /target

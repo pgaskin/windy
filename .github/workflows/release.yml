@@ -16,6 +16,11 @@ jobs:
           distribution: 'temurin'
           java-version: '25'
           cache: gradle
+      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
+      - run: rustup target add aarch64-linux-android
+      - run: rustup target add armv7-linux-androideabi
+      - run: rustup target add x86_64-linux-android
+      - run: cargo install cargo-ndk@4.1.2
       - run: ./gradlew app:assembleRelease
       - uses: actions/upload-artifact@v7
         with:
