@@ -1,0 +1,19 @@
+[package]
+name = "windy-wallpaper-preview"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Preview and theme editor for the Windy live wallpaper"
+
+[dependencies]
+windy-wallpaper-core = { path = "../core" }
+wgpu.workspace = true
+log.workspace = true
+argh.workspace = true
+winit = "0.30"
+pollster = "0.4"
+env_logger = "0.11"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+egui = "0.34"
+egui-wgpu = "0.34"
+egui-winit = { version = "0.34", default-features = false, features = ["clipboard", "wayland", "x11"] }

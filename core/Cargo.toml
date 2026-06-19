@@ -1,0 +1,17 @@
+[package]
+name = "windy-wallpaper-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cross-platform wgpu-based renderer for the Windy live wallpaper"
+
+[dependencies]
+wgpu.workspace = true
+bytemuck.workspace = true
+
+[build-dependencies]
+wgsl_to_wgpu = "0.18" # match naga and workspace wgpu 29
+
+[dev-dependencies]
+naga = { version = "29", features = ["wgsl-in"] } # match workspace wgpu 29
+pollster = "0.4"

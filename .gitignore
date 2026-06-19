@@ -1,5 +1,6 @@
 *.iml
 .gradle
+.cache
 local.properties
 .DS_Store
 /.idea
@@ -7,3 +8,4 @@ local.properties
 /captures
 /app/build
 /app/libs
+/target

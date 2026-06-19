@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = [
+    "core",
+    "preview",
+]
+
+[workspace.package]
+version = "0.0.7"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+
+[workspace.dependencies]
+wgpu = "29"
+bytemuck = { version = "1", features = ["derive"] }
+log = "0.4"
+argh = "0.1"
+
+[profile.release]
+panic = "abort" # cannot unwind across jni
