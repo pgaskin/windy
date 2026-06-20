@@ -3,8 +3,7 @@
 .cache
 local.properties
 .DS_Store
-/.idea
-/build
-/captures
-/app/build
-/target
+.idea
+build
+captures
+target
