@@ -1,0 +1,27 @@
+name: Publish
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    environment:
+      name: publish
+      deployment: false
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v7
+    - run: test "${{github.ref_name}}" == "v$(grep -FA5 'name = "windy-wallpaper-' Cargo.lock | grep -E '^version\s*=\s*".+"' | cut -d '"' -f2 | sort -u)" || { echo 'incorrect version in Cargo.lock'; exit 1; }
+    - run: test "${{github.ref_name}}" == "v$(grep -E '^version\s*=\s*".+"' Cargo.toml | head -n1 | cut -d '"' -f2)" || { echo 'incorrect version in workspace Cargo.toml'; exit 1; }
+    - run: test "${{github.ref_name}}" == "v$(find . -name Cargo.toml -not -path './target/*' | xargs grep -E 'windy-wallpaper-core = ' | grep -Eo 'version\s*=\s*".+"' | cut -d '"' -f2 | sort -u)" || { echo 'incorrect version in Cargo.toml'; exit 1; }
+    - uses: rust-lang/crates-io-auth-action@v1
+      id: auth
+    - run: cargo publish --no-verify
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
