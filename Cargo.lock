@@ -4239,7 +4239,7 @@ checksum = "d6bbff5f0aada427a1e5a6da5f1f98158182f26556f345ac9e04d36d0ebed650"
 
 [[package]]
 name = "windy-wallpaper-android"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "android_logger",
  "jni",
@@ -4253,7 +4253,7 @@ dependencies = [
 
 [[package]]
 name = "windy-wallpaper-api"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4271,7 +4271,7 @@ dependencies = [
 
 [[package]]
 name = "windy-wallpaper-core"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "bytemuck",
  "naga",
@@ -4282,7 +4282,7 @@ dependencies = [
 
 [[package]]
 name = "windy-wallpaper-preview"
-version = "0.0.7"
+version = "0.0.8"
 dependencies = [
  "clap",
  "egui",
