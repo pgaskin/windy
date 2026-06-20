@@ -25,7 +25,11 @@ struct State {
 }
 
 impl State {
-    fn new(window: ndk::native_window::NativeWindow, theme_index: usize, dpi_scale: f32) -> State {
+    fn new(
+        window: ndk::native_window::NativeWindow,
+        theme_index: usize,
+        dpi_scale: f32,
+    ) -> Result<State, String> {
         let width = window.width().max(1) as u32;
         let height = window.height().max(1) as u32;
 
@@ -37,7 +41,7 @@ impl State {
 
         let raw_window_handle = {
             let ptr = NonNull::new(window.ptr().as_ptr() as *mut _)
-                .expect("ANativeWindow pointer is null");
+                .ok_or_else(|| "ANativeWindow pointer is null".to_string())?;
             RawWindowHandle::AndroidNdk(AndroidNdkWindowHandle::new(ptr))
         };
         let raw_display_handle = RawDisplayHandle::Android(AndroidDisplayHandle::new());
@@ -47,7 +51,7 @@ impl State {
                     raw_display_handle: Some(raw_display_handle),
                     raw_window_handle,
                 })
-                .expect("create surface from ANativeWindow")
+                .map_err(|e| format!("create surface from ANativeWindow: {}", e))?
         };
 
         // prefer vulkan since wgpu allocates MUCH more memory and is less
@@ -55,7 +59,7 @@ impl State {
         let adapter = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::VULKAN))
             .into_iter()
             .find(|a| a.is_surface_supported(&surface))
-            .expect("no suitable gpu adapter");
+            .ok_or_else(|| "no suitable gpu adapter".to_string())?;
         log::info!("using gpu adapter: {:?}", adapter.get_info());
 
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
@@ -69,7 +73,7 @@ impl State {
             memory_hints: wgpu::MemoryHints::MemoryUsage,
             ..Default::default()
         }))
-        .expect("failed to create device");
+        .map_err(|e| format!("failed to create device: {}", e))?;
 
         let caps = surface.get_capabilities(&adapter);
         // prefer non-srgb to avoid linearizing colors and washing them out
@@ -97,7 +101,7 @@ impl State {
         config.line_half_width = (config.line_half_width * dpi_scale).max(1.0);
 
         let renderer = Renderer::new(&device, &queue, format, config, width, height);
-        State {
+        Ok(State {
             surface,
             _window: window,
             surface_config,
@@ -106,7 +110,7 @@ impl State {
             renderer,
             last_frame: Instant::now(),
             _instance: instance,
-        }
+        })
     }
 
     fn resize(&mut self, width: u32, height: u32) {
@@ -154,7 +158,7 @@ unsafe fn state<'a>(handle: jlong) -> &'a mut State {
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeCreate(
-    env: EnvUnowned,
+    mut env: EnvUnowned,
     _class: JClass,
     surface: JObject,
     theme_index: jint,
@@ -167,16 +171,30 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeCreate(
             .with_tag("WindyNative"),
     );
 
-    let window = unsafe {
-        ndk::native_window::NativeWindow::from_surface(env.as_raw().cast(), surface.as_raw())
-    };
-    let Some(window) = window else {
-        log::error!("failed to get ANativeWindow from Surface");
-        return 0;
-    };
-
-    let state = State::new(window, theme_index.max(0) as usize, dpi_scale as f32);
-    Box::into_raw(Box::new(state)) as jlong
+    let env_raw = env.as_raw();
+    env.with_env(|inner_env| -> Result<jlong, jni::errors::Error> {
+        let window = unsafe {
+            ndk::native_window::NativeWindow::from_surface(env_raw.cast(), surface.as_raw())
+        };
+        let Some(window) = window else {
+            inner_env.throw_new(
+                jni::strings::JNIString::from("java/lang/RuntimeException"),
+                jni::strings::JNIString::from("failed to get ANativeWindow from Surface"),
+            )?;
+            return Ok(0);
+        };
+        match State::new(window, theme_index.max(0) as usize, dpi_scale as f32) {
+            Ok(state) => Ok(Box::into_raw(Box::new(state)) as jlong),
+            Err(e) => {
+                inner_env.throw_new(
+                    jni::strings::JNIString::from("java/lang/RuntimeException"),
+                    jni::strings::JNIString::from(e),
+                )?;
+                Ok(0)
+            }
+        }
+    })
+    .resolve::<LogErrorAndDefault>()
 }
 
 #[unsafe(no_mangle)]
