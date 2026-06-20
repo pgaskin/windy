@@ -11,6 +11,7 @@ members = [
 version = "0.0.7"
 edition = "2024"
 license = "AGPL-3.0-or-later"
+repository = "https://github.com/pgaskin/windy"
 
 [workspace.dependencies]
 wgpu = "29"

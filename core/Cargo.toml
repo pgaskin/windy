@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "Cross-platform wgpu-based renderer for the Windy live wallpaper"
+repository.workspace = true
+keywords = ["wallpaper", "dynamic"]
+categories = ["graphics"]
 
 [dependencies]
 wgpu.workspace = true

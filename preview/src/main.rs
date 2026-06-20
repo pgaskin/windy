@@ -18,7 +18,7 @@ use winit::window::{Window, WindowId};
 use theme_editor::ThemeEditor;
 use windy_wallpaper_core::{Config, Renderer, Theme};
 
-pub(crate) const WIND_PNG: &[u8] = include_bytes!("../../app/src/main/assets/windy/wind_cache.png");
+pub(crate) const WIND_PNG: &[u8] = include_bytes!("wind_cache.png");
 
 /// Preview and theme editor for the Windy live wallpaper.
 #[derive(clap::Parser)]

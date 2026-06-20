@@ -4,6 +4,8 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 description = "API serving wind data for the Windy live wallpaper"
+repository.workspace = true
+keywords = ["weather", "wallpaper"]
 
 [[bin]]
 name = "windyapi"
