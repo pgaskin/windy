@@ -10,7 +10,7 @@ name = "windy_jni"
 crate-type = ["cdylib"]
 
 [dependencies]
-windy-wallpaper-core = { path = "../../../../core" }
+windy-wallpaper-core = { workspace = true }
 wgpu.workspace = true
 log.workspace = true
 

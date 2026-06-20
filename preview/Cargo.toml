@@ -9,7 +9,7 @@ keywords = ["wallpaper", "dynamic"]
 categories = ["graphics"]
 
 [dependencies]
-windy-wallpaper-core = { path = "../core", version = "0.0.7" }
+windy-wallpaper-core = { workspace = true }
 wgpu.workspace = true
 log.workspace = true
 clap.workspace = true
