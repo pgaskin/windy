@@ -17,8 +17,8 @@ android {
         applicationId "net.pgaskin.windy"
         minSdk 30
         targetSdk 36
-        versionCode 7
-        versionName "7"
+        versionCode 8
+        versionName "8"
 
         buildConfigField "String", "WIND_FIELD_API_HOST", "\"windy.api.pgaskin.net\""
         buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "360" // min
