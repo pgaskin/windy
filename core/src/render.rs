@@ -422,7 +422,7 @@ impl Renderer {
             });
             cpass.set_pipeline(&self.sim_pipeline);
             self.sim_bg.set(&mut cpass);
-            let groups = (self.config.particle_count + WORKGROUP - 1) / WORKGROUP;
+            let groups = self.config.particle_count.div_ceil(WORKGROUP);
             cpass.dispatch_workgroups(groups, 1, 1);
         }
 

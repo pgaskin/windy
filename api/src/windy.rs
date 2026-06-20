@@ -51,7 +51,7 @@ pub struct WindData {
 struct State {
     data: Option<Arc<WindData>>,
     err: Option<String>, // if failed
-    started: u64, // started > completed if update in-flight
+    started: u64,        // started > completed if update in-flight
     completed: u64,
 }
 

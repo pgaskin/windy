@@ -150,10 +150,10 @@ fn grib_index(
         let off: usize = f[1]
             .parse()
             .with_context(|| format!("parse: invalid offset {:?}", f[1]))?;
-        if let Some(c) = cur.take() {
-            if let Some(range) = idx[c].as_mut() {
-                range.1 = Some(off.saturating_sub(1));
-            }
+        if let Some(c) = cur.take()
+            && let Some(range) = idx[c].as_mut()
+        {
+            range.1 = Some(off.saturating_sub(1));
         }
         for (i, c) in components.iter().enumerate() {
             if c.0 == f[3] && c.1 == f[4] {
