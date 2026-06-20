@@ -15,7 +15,22 @@
         android:required="true" />
 
     <uses-feature
-        android:glEsVersion="0x30001"
+        android:name="android.hardware.location"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.vulkan.version"
+        android:version="0x400003"
+        android:required="true" />
+
+    <uses-feature
+        android:name="android.hardware.vulkan.level"
+        android:version="0"
+        android:required="true" />
+
+    <uses-feature
+        android:name="android.hardware.vulkan.compute"
+        android:version="0"
         android:required="true" />
 
     <application

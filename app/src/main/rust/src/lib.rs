@@ -30,8 +30,8 @@ impl State {
         let height = window.height().max(1) as u32;
 
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            // vulkan is available on API 24+, fall back to gles
-            backends: wgpu::Backends::VULKAN | wgpu::Backends::GL,
+            // vulkan is available on API 24+
+            backends: wgpu::Backends::VULKAN,
             ..wgpu::InstanceDescriptor::new_without_display_handle()
         });
 
@@ -55,15 +55,6 @@ impl State {
         let adapter = pollster::block_on(instance.enumerate_adapters(wgpu::Backends::VULKAN))
             .into_iter()
             .find(|a| a.is_surface_supported(&surface))
-            .or_else(|| {
-                log::warn!("no vulkan adapter for surface, falling back to gles");
-                pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::LowPower,
-                    compatible_surface: Some(&surface),
-                    force_fallback_adapter: false,
-                }))
-                .ok()
-            })
             .expect("no suitable gpu adapter");
         log::info!("using gpu adapter: {:?}", adapter.get_info());
 

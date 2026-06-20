@@ -15,7 +15,7 @@ repository = "https://github.com/pgaskin/windy"
 
 [workspace.dependencies]
 windy-wallpaper-core = { path = "core", version = "0.0.8" }
-wgpu = "29"
+wgpu = { version = "29", default-features = false, features = ["vulkan", "wgsl", "std"] }
 bytemuck = { version = "1", features = ["derive"] }
 log = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
