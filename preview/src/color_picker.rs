@@ -1,4 +1,4 @@
-// SPDX-FileCopyrightText: 2023-2026 Patrick Gaskin
+// SPDX-FileCopyrightText: 2026 Patrick Gaskin
 // SPDX-FileCopyrightText: 2018-2021 Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 

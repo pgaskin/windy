@@ -1,4 +1,5 @@
-// Particle advection (replaces the GPGPU fragment-shader ping-pong).
+// SPDX-FileCopyrightText: 2023-2026 Patrick Gaskin
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 @group(0) @binding(0) var<uniform> g: Globals;
 @group(0) @binding(1) var<storage, read_write> particles: array<Particle>;
