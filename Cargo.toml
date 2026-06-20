@@ -2,8 +2,8 @@
 resolver = "2"
 members = [
     "api",
+    "app/src/main/rust",
     "core",
-    "jni",
     "preview",
 ]
 

@@ -42,12 +42,6 @@ android {
         targetCompatibility = JavaVersion.toVersion("8")
     }
 
-    sourceSets {
-        main {
-            jniLibs.srcDirs = ['src/main/jniLibs']
-        }
-    }
-
     buildFeatures {
         buildConfig = true
     }
@@ -61,39 +55,29 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     variant.sources.java?.addGeneratedSourceDirectory(genThemes) { it.javaOutputDir }
     variant.sources.res?.addGeneratedSourceDirectory(genThemes) { it.resOutputDir }
     variant.sources.manifests.addGeneratedManifestFile(genThemes) { it.manifestOutput }
-}
 
-tasks.register("cargoBuildNative", CargoBuildTask) {
-    workspaceDir.set(rootProject.layout.projectDirectory)
-    outputDir.set(layout.projectDirectory.dir("src/main/jniLibs"))
-    cargoPackage.set("windy-wallpaper-android")
-    ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
-    abiFilters.set(provider {
-        Set<String> abis = [] as Set
-        if (android.defaultConfig.ndk.abiFilters != null) {
-            abis.addAll(android.defaultConfig.ndk.abiFilters)
-        }
-        android.productFlavors.each { flavor ->
-            if (flavor.ndk.abiFilters != null) {
-                abis.addAll(flavor.ndk.abiFilters)
+    def cargoBuild = tasks.register("cargoBuild${cap}Native", CargoBuildTask) {
+        workspaceDir.set(rootProject.layout.projectDirectory)
+        cargoPackage.set("windy-wallpaper-android")
+        ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+        abiFilters.set(provider {
+            Set<String> abis = [] as Set
+            if (android.defaultConfig.ndk.abiFilters != null) {
+                abis.addAll(android.defaultConfig.ndk.abiFilters)
             }
-        }
-        abis
-    })
-    minSdkVersion.set(provider {
-        def v = android.defaultConfig.minSdk
-        (v instanceof com.android.build.api.variant.AndroidVersion) ? v.apiLevel : v
-    })
-}
-
-tasks.configureEach { task ->
-    if (task.name.startsWith("merge") && task.name.endsWith("JniLibFolders")) {
-        task.dependsOn "cargoBuildNative"
+            android.productFlavors.each { flavor ->
+                if (flavor.ndk.abiFilters != null) {
+                    abis.addAll(flavor.ndk.abiFilters)
+                }
+            }
+            abis
+        })
+        minSdkVersion.set(provider {
+            def v = android.defaultConfig.minSdk
+            (v instanceof com.android.build.api.variant.AndroidVersion) ? v.apiLevel : v
+        })
     }
-}
-
-tasks.named("clean").configure {
-    delete file("src/main/jniLibs")
+    variant.sources.jniLibs?.addGeneratedSourceDirectory(cargoBuild) { it.outputDir }
 }
 
 import javax.inject.Inject
@@ -119,7 +103,7 @@ abstract class CargoBuildTask extends DefaultTask {
     @Internal
     abstract DirectoryProperty getWorkspaceDir()
 
-    @Internal
+    @OutputDirectory
     abstract DirectoryProperty getOutputDir()
 
     @Inject
@@ -131,6 +115,10 @@ abstract class CargoBuildTask extends DefaultTask {
         if (abis.isEmpty()) {
             throw new GradleException("NDK abiFilters must be set")
         }
+
+        def outDir = outputDir.get().asFile
+        outDir.deleteDir()
+        outDir.mkdirs()
 
         def cmd = ["cargo", "ndk"]
         abis.each { cmd += ["-t", it] }

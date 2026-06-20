@@ -3,14 +3,14 @@ name = "windy-wallpaper-android"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Android bindings for the Windy live wallpaper"
+publish = false
 
 [lib]
 name = "windy_jni"
 crate-type = ["cdylib"]
 
 [dependencies]
-windy-wallpaper-core = { path = "../core" }
+windy-wallpaper-core = { path = "../../../../core" }
 wgpu.workspace = true
 log.workspace = true
 
