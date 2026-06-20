@@ -6,7 +6,7 @@ license.workspace = true
 description = "Preview and theme editor for the Windy live wallpaper"
 
 [dependencies]
-windy-wallpaper-core = { path = "../core" }
+windy-wallpaper-core = { path = "../core", version = "0.0.7" }
 wgpu.workspace = true
 log.workspace = true
 clap.workspace = true
