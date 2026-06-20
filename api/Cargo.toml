@@ -17,7 +17,13 @@ ureq = "3"
 warp = { version = "0.4", features = ["server"] }
 
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
-grib = "0.15"
+grib = { version = "0.15", default-features = false, features = [
+    "jpeg2000-unpack-with-openjpeg",
+    "ccsds-unpack-with-libaec",
+    "png-unpack-with-png-crate",
+    # note: not gridpoints-proj since it causes tens of unnecessary system libs to be
+    # dynamically linked (and gfs pgrb2 is a normal regular lat/lng grid anyways)
+] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
 png = "0.18" # image 0.25 does not expose tEXt metadata chunks
 jpeg-encoder = "0.7" # image 0.25 does not support 4:2:0 chroma subsampling
