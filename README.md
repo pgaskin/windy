@@ -35,6 +35,20 @@ The shaders are inspired by the official Pixel windy live wallpaper, but rewritt
 <td><img src="app/src/main/res/drawable/windy_sparkwhirled.jpg"></td>
 </tr></tbody></table>
 
+#### Creating themes
+
+There is a built-in tool to preview the wallpaper locally, update the preview images, and create themes.
+
+```bash
+# run wallpaper locally
+cargo run --package windy-wallpaper-preview
+
+# update preview images
+cargo run --package windy-wallpaper-preview -- --screenshots app/src/main/res/drawable
+```
+
+<img src="https://github.com/user-attachments/assets/d3c4494f-24ee-4ddd-88e3-faffbfa04abd" alt="theme editor screenshot" height="200">
+
 #### Wind field images
 
 The wind field images used by the live wallpaper are generated from [NOAA GFS](https://www.ncei.noaa.gov/products/weather-climate-models/global-forecast) [0.25° ANL](https://www.nco.ncep.noaa.gov/pmb/products/gfs/) data ([updated](https://www.nco.ncep.noaa.gov/pmb/nwprod/prodstat/) every 6 hours) using the wind vector values ([UGRD, VGRD](https://origin.cpc.ncep.noaa.gov/products/wesley/wgrib2/wind_uv.html)) at 850 mb elevation (this is arbitrary).
