@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
+use clap::Parser;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
@@ -20,25 +21,26 @@ use windy_wallpaper_core::{Config, Renderer, Theme};
 pub(crate) const WIND_PNG: &[u8] = include_bytes!("../../app/src/main/assets/windy/wind_cache.png");
 
 /// Preview and theme editor for the Windy live wallpaper.
-#[derive(argh::FromArgs)]
+#[derive(clap::Parser)]
+#[command(version, about, long_about = None)]
 struct Args {
-    /// initial theme
-    #[argh(option)]
+    /// Initial theme
+    #[arg(long, env = "WINDY_THEME", value_name = "theme")]
     theme: Option<String>,
 
-    /// list themes and exit
-    #[argh(switch)]
+    /// List themes and exit
+    #[arg(long)]
     list: bool,
 
-    /// render previews and exit
-    #[argh(option, arg_name = "dir")]
+    /// Render previews to the given directory and exit
+    #[arg(long, value_name = "dir")]
     screenshots: Option<PathBuf>,
 }
 
 fn main() {
     env_logger::init();
 
-    let args: Args = argh::from_env();
+    let args = Args::parse();
     if args.list {
         println!("Themes:");
         for t in Theme::ALL {

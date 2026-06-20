@@ -15,7 +15,7 @@ license = "AGPL-3.0-or-later"
 wgpu = "29"
 bytemuck = { version = "1", features = ["derive"] }
 log = "0.4"
-argh = "0.1"
+clap = { version = "4", features = ["derive", "env"] }
 
 [profile.release]
 panic = "abort" # cannot unwind across jni

@@ -9,7 +9,7 @@ description = "Preview and theme editor for the Windy live wallpaper"
 windy-wallpaper-core = { path = "../core" }
 wgpu.workspace = true
 log.workspace = true
-argh.workspace = true
+clap.workspace = true
 winit = "0.30"
 pollster = "0.4"
 env_logger = "0.11"
