@@ -94,6 +94,14 @@ impl Theme {
         bg_color2: rgba8(0x464749FF),
         wallpaper_color: rgb8(0x101110FF),
     };
+    pub const DEEP_BLUE: Theme = Theme {
+        name: "DeepBlue",
+        slow_wind_color: [0.2824, 0.3176, 0.4902, 0.7255],
+        fast_wind_color: [0.1725, 0.5843, 0.5843, 0.3412],
+        bg_color1: [0.0510, 0.0275, 0.0275, 1.0000],
+        bg_color2: [0.0039, 0.0039, 0.1255, 1.0000],
+        wallpaper_color: rgb8(0x0D0707FF),
+    };
     pub const MAROON: Theme = Theme {
         name: "Maroon",
         slow_wind_color: [0.576, 0.192, 0.192, 0.25],
@@ -153,6 +161,7 @@ impl Theme {
         Theme::GREEN,             // Windy, Green
         Theme::BLUSH,             // Windy, Blush
         Theme::MIDNIGHT,          // Windy, Midnight
+        Theme::DEEP_BLUE,         // Windy, Deep blue
         Theme::MAROON,            // Windy, Maroon
         Theme::SEPIA,             // Windy, Sepia
         Theme::SUNSET_WHIRLED,    // Your whirled, Sunset
