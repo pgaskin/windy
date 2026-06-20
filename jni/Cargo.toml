@@ -6,6 +6,7 @@ license.workspace = true
 description = "Android bindings for the Windy live wallpaper"
 
 [lib]
+name = "windy_jni"
 crate-type = ["cdylib"]
 
 [dependencies]

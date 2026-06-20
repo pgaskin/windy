@@ -12,7 +12,7 @@ import android.view.Surface;
  */
 public final class NativeRenderer implements AutoCloseable {
     static {
-        System.loadLibrary("windy_wallpaper_android");
+        System.loadLibrary("windy_jni");
     }
 
     private long handle;
