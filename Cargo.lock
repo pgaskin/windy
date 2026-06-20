@@ -4263,6 +4263,7 @@ dependencies = [
  "image",
  "jpeg-encoder",
  "log",
+ "png",
  "sha1 0.11.0",
  "tokio",
  "ureq",

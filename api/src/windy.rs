@@ -7,8 +7,7 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
-use image::codecs::png::PngEncoder;
-use image::{DynamicImage, ExtendedColorType, ImageEncoder, RgbImage};
+use image::{DynamicImage, RgbImage};
 use jpeg_encoder::{ColorType as JpegColorType, Encoder as JpegEncoder, SamplingFactor};
 use sha1::{Digest, Sha1};
 use tokio::sync::watch;
@@ -217,9 +216,12 @@ fn build_wind_data(
     let full: RgbImage = DynamicImage::from(texture).into_rgb8();
     let filtered: RgbImage = DynamicImage::from(filtered).into_rgb8();
 
-    let jpg = encode_jpeg(&full).context("encode jpeg")?;
-    let png = encode_png(&full).context("encode png")?;
-    let filtered_png = encode_png(&filtered).context("encode filtered png")?;
+    let full_meta = ImageMeta::new(&source, 0, updated);
+    let filtered_meta = ImageMeta::new(&source, 1, updated);
+
+    let jpg = encode_jpeg(&full, &full_meta).context("encode jpeg")?;
+    let png = encode_png(&full, &full_meta).context("encode png")?;
+    let filtered_png = encode_png(&filtered, &filtered_meta).context("encode filtered png")?;
 
     Ok(WindData {
         jpg: Encoded::new(jpg),
@@ -231,23 +233,63 @@ fn build_wind_data(
     })
 }
 
-fn encode_png(img: &RgbImage) -> Result<Vec<u8>> {
+struct ImageMeta {
+    /// The version of the API that generated the image.
+    version: &'static str,
+    /// When the wind field was generated.
+    generated: DateTime<Utc>,
+    /// The GFS GRIB source path the wind field was generated from.
+    grib: String,
+    /// The 1-based filter index this texture corresponds to (matching the
+    /// `wind_cache.png?filter=N` query), or 0 for the unfiltered `wind_field`.
+    filter: usize,
+}
+
+impl ImageMeta {
+    fn new(source: &str, filter: usize, generated: DateTime<Utc>) -> Self {
+        Self {
+            version: option_env!("CARGO_PKG_VERSION").unwrap_or("unknown"),
+            generated,
+            grib: source.to_string(),
+            filter,
+        }
+    }
+
+    fn fields(&self) -> [(&'static str, String); 4] {
+        [
+            ("windy:version", self.version.to_string()),
+            (
+                "windy:generated",
+                self.generated.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
+            ),
+            ("windy:grib", self.grib.clone()),
+            ("windy:filter", self.filter.to_string()),
+        ]
+    }
+}
+
+fn encode_png(img: &RgbImage, meta: &ImageMeta) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
-    PngEncoder::new(&mut buf).write_image(
-        img.as_raw(),
-        img.width(),
-        img.height(),
-        ExtendedColorType::Rgb8,
-    )?;
+    {
+        let mut encoder = png::Encoder::new(&mut buf, img.width(), img.height());
+        encoder.set_color(png::ColorType::Rgb);
+        encoder.set_depth(png::BitDepth::Eight);
+        for (key, value) in meta.fields() {
+            encoder.add_text_chunk(key.to_string(), value)?;
+        }
+        let mut writer = encoder.write_header()?;
+        writer.write_image_data(img.as_raw())?;
+    }
     Ok(buf)
 }
 
-fn encode_jpeg(img: &RgbImage) -> Result<Vec<u8>> {
+fn encode_jpeg(img: &RgbImage, meta: &ImageMeta) -> Result<Vec<u8>> {
     let mut buf = Vec::new();
     let mut encoder = JpegEncoder::new(&mut buf, 100);
     // 4:2:0 chroma subsampling, matching Go's image/jpeg and the original Google
     // texture (image 0.25's built-in encoder forces 4:4:4)
     encoder.set_sampling_factor(SamplingFactor::R_4_2_0);
+    encoder.add_exif_metadata(&build_exif(&meta.fields()))?;
     encoder.encode(
         img.as_raw(),
         img.width() as u16,
@@ -255,4 +297,57 @@ fn encode_jpeg(img: &RgbImage) -> Result<Vec<u8>> {
         JpegColorType::Rgb,
     )?;
     Ok(buf)
+}
+
+/// Builds a minimal little-endian EXIF/TIFF blob storing the `(key, value)`
+/// pairs as EXIF ASCII tags.
+///
+/// EXIF has no arbitrary key/value support, so each field is written to a
+/// private ASCII tag in the 0xFExx range and also combined into the standard
+/// ImageDescription (0x010E) tag for existing tools.
+fn build_exif(fields: &[(&str, String)]) -> Vec<u8> {
+    // must be emitted in ascending tag order according to the tiff spec
+    let description = fields
+        .iter()
+        .map(|(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join("; ");
+    let mut entries: Vec<(u16, String)> = vec![(0x010E, description)];
+    for (i, (_, v)) in fields.iter().enumerate() {
+        entries.push((0xFE00 + i as u16, v.clone()));
+    }
+    entries.sort_by_key(|(tag, _)| *tag);
+
+    let mut hdr = Vec::new();
+    hdr.extend_from_slice(b"II"); // little-endian
+    hdr.extend_from_slice(&42u16.to_le_bytes()); // tiff magic
+    hdr.extend_from_slice(&8u32.to_le_bytes()); // offset to ifd0
+
+    // values longer than 4 bytes live in a data area after the ifd
+    let ifd_size = 2 + 12 * entries.len() + 4;
+    let data_start = 8 + ifd_size;
+    let mut data = Vec::new();
+
+    hdr.extend_from_slice(&(entries.len() as u16).to_le_bytes());
+    for (tag, value) in &entries {
+        let mut bytes = value.clone().into_bytes();
+        bytes.push(0); // ascii values are null-terminated
+        hdr.extend_from_slice(&tag.to_le_bytes());
+        hdr.extend_from_slice(&2u16.to_le_bytes()); // type = ascii
+        hdr.extend_from_slice(&(bytes.len() as u32).to_le_bytes());
+        if bytes.len() <= 4 {
+            let mut inline = [0u8; 4];
+            inline[..bytes.len()].copy_from_slice(&bytes);
+            hdr.extend_from_slice(&inline);
+        } else {
+            hdr.extend_from_slice(&((data_start + data.len()) as u32).to_le_bytes());
+            data.extend_from_slice(&bytes);
+            if data.len() % 2 != 0 {
+                data.push(0); // values are word-aligned
+            }
+        }
+    }
+    hdr.extend_from_slice(&0u32.to_le_bytes()); // no next ifd
+    hdr.extend_from_slice(&data);
+    hdr
 }
