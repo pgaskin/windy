@@ -7,22 +7,28 @@ on:
   pull_request:
 
 jobs:
+  rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
+      - run: rustup component add clippy
+      - run: rustup component add rustfmt
+      - run: cargo check --locked --workspace --verbose
+      - run: cargo build --locked --workspace --verbose
+      - run: cargo test --locked --workspace --verbose
+      - run: cargo clippy --locked --workspace --verbose
+      - run: cargo fmt --all --check
+
   api:
     name: API
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-go@v6
-        with:
-          go-version-file: 'go.mod'
-      - uses: baptiste0928/cargo-install@v2
-        with:
-          crate: grib-cli
-          version: 0.7.1
-      - run: go test -v ./api
-      - run: go vet ./api
-      - run: go run ./api -help
-      - run: go run ./api -once
+      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
+      - run: cargo build --locked --package windy-wallpaper-api
+      - run: cargo run --locked --package windy-wallpaper-api -- --once
       - uses: actions/upload-artifact@v7
         with:
           name: wind-field
