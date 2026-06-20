@@ -3,10 +3,10 @@
 use std::ptr::NonNull;
 use std::time::Instant;
 
+use jni::EnvUnowned;
 use jni::errors::LogErrorAndDefault;
 use jni::objects::{JByteArray, JClass, JObject};
 use jni::sys::{jfloat, jint, jlong};
-use jni::EnvUnowned;
 
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
@@ -224,7 +224,9 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetOffset(
     if handle == 0 {
         return;
     }
-    unsafe { state(handle) }.renderer.set_offset_x(offset as f32);
+    unsafe { state(handle) }
+        .renderer
+        .set_offset_x(offset as f32);
 }
 
 #[unsafe(no_mangle)]
@@ -256,7 +258,8 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetWindField(
         return;
     }
     let st = unsafe { state(handle) };
-    env.with_env(|env| { // with_env catches panics
+    env.with_env(|env| {
+        // with_env catches panics
         let bytes = env.convert_byte_array(&rgba)?;
         st.renderer.set_wind_field(
             &st.device,
