@@ -34,7 +34,7 @@ public final class ColorPickerDialog {
         final AlertDialog dialog = new AlertDialog.Builder(context)
                 .setTitle(title)
                 .setView(container)
-                .setPositiveButton(android.R.string.ok, (d, which) -> {
+                .setPositiveButton(R.string.save, (d, which) -> {
                     accepted[0] = true;
                     commit.accept(picker.getColor());
                 })

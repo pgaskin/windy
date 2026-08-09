@@ -245,6 +245,19 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSkip(
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeRestart(
+    _env: EnvUnowned,
+    _class: JClass,
+    handle: jlong,
+) {
+    if handle == 0 {
+        return;
+    }
+    let st = unsafe { state(handle) };
+    st.renderer.restart(&st.device);
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetOffset(
     _env: EnvUnowned,
     _class: JClass,

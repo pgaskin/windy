@@ -271,10 +271,10 @@ public class MainActivity extends Activity {
         final TextView[] values = new TextView[CustomTheme.PARAM_COUNT];
 
         final LayoutInflater inflater = getLayoutInflater();
-        final LinearLayout container = new LinearLayout(this);
-        container.setOrientation(LinearLayout.VERTICAL);
-        final int padding = Math.round(20 * getResources().getDisplayMetrics().density);
-        container.setPadding(padding, padding / 2, padding, 0);
+        final LinearLayout container = (LinearLayout) inflater.inflate(R.layout.dialog_advanced, null);
+
+        final View title = inflater.inflate(R.layout.dialog_advanced_title, null);
+        title.findViewById(R.id.param_restart).setOnClickListener(v -> WindyWallpaperRenderer.restartAll());
 
         for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
             final int param = i;
@@ -308,9 +308,9 @@ public class MainActivity extends Activity {
 
         final boolean[] accepted = {false};
         final AlertDialog dialog = new AlertDialog.Builder(this)
-                .setTitle(R.string.advanced)
+                .setCustomTitle(title)
                 .setView(container)
-                .setPositiveButton(android.R.string.ok, (d, which) -> {
+                .setPositiveButton(R.string.save, (d, which) -> {
                     accepted[0] = true;
                     CustomTheme.persist(this);
                     updatePresetSelection();
@@ -446,7 +446,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this)
                 .setTitle(R.string.save_preset_title)
                 .setView(container)
-                .setPositiveButton(R.string.save_preset, (dialog, which) -> {
+                .setPositiveButton(R.string.save, (dialog, which) -> {
                     final String name = CustomTheme.normalizeName(input.getText().toString());
                     if (!name.isEmpty()) {
                         CustomTheme.savePreset(this, name);

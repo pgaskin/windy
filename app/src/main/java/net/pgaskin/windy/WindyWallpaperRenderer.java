@@ -25,6 +25,13 @@ public abstract class WindyWallpaperRenderer extends Thread {
         }
     }
 
+    /** Restarts all renderers, to see the current settings from a clean slate. */
+    static void restartAll() {
+        for (final WindyWallpaperRenderer renderer : renderers) {
+            renderer.requestRestart();
+        }
+    }
+
     private final Context context;
     private final SurfaceHolder holder;
 
@@ -48,6 +55,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
     private volatile boolean staticMode;
     private volatile boolean settingsDirty;
     private boolean settled;
+    private boolean restartPending;
 
     private final SharedPreferences.OnSharedPreferenceChangeListener settingsListener = (prefs, key) -> {
         settingsDirty = true;
@@ -110,6 +118,12 @@ public abstract class WindyWallpaperRenderer extends Thread {
     }
 
     public synchronized void wake() {
+        notifyAll();
+    }
+
+    public synchronized void requestRestart() {
+        restartPending = true;
+        settled = false; // static mode needs a new frame too
         notifyAll();
     }
 
@@ -178,6 +192,12 @@ public abstract class WindyWallpaperRenderer extends Thread {
                         renderer.resize(pendingWidth, pendingHeight);
                         resized = false;
                         settled = false;
+                    }
+                    if (restartPending) {
+                        if (!fresh) {
+                            renderer.restart(); // a new one starts clean anyway
+                        }
+                        restartPending = false;
                     }
                 }
 

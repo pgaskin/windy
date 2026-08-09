@@ -36,6 +36,11 @@ public final class WindyWallpaperNative implements AutoCloseable {
         nativeSkip(handle, frames);
     }
 
+    /** Clears the trails and respawns the particles. */
+    public void restart() {
+        nativeRestart(handle);
+    }
+
     public void setOffset(float offset) {
         nativeSetOffset(handle, offset);
     }
@@ -82,6 +87,7 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native void nativeResize(long handle, int width, int height);
     private static native void nativeRender(long handle);
     private static native void nativeSkip(long handle, int frames);
+    private static native void nativeRestart(long handle);
     private static native void nativeSetOffset(long handle, float offset);
     private static native void nativeSetUserLocation(long handle, float lng, float lat);
     private static native void nativeSetColors(long handle, int slow, int fast, int bg1, int bg2);
