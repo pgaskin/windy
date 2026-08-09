@@ -187,6 +187,20 @@ public class SettingsActivity extends Activity {
             });
             dataCategory.addPreference(urlPref);
 
+            final PreferenceCategory renderingCategory = new PreferenceCategory(context);
+            renderingCategory.setTitle(R.string.rendering);
+            screen.addPreference(renderingCategory);
+
+            final ListPreference maxFps = new ListPreference(context);
+            maxFps.setKey(Prefs.KEY_MAX_FPS);
+            maxFps.setTitle(R.string.max_fps);
+            maxFps.setDialogTitle(R.string.max_fps);
+            maxFps.setSummary(getString(R.string.max_fps_summary));
+            maxFps.setEntries(R.array.max_fps_entries);
+            maxFps.setEntryValues(R.array.max_fps_values);
+            maxFps.setDefaultValue(String.valueOf(Prefs.MAX_FPS_AUTOMATIC));
+            renderingCategory.addPreference(maxFps);
+
             aboutCategory = new PreferenceCategory(context);
             aboutCategory.setTitle(R.string.about);
             screen.addPreference(aboutCategory);

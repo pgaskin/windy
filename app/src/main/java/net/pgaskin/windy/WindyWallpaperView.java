@@ -3,6 +3,7 @@
 package net.pgaskin.windy;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -105,6 +106,7 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
         public void run() {
             final Context context = getContext();
             final float dpiScale = getResources().getDisplayMetrics().density;
+            final SharedPreferences prefs = Prefs.get(context);
             NativeRenderer renderer = null;
             int rendererTheme = -1;
             int windFieldSeq = -1;
@@ -156,7 +158,7 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
                     renderer.render();
 
                     try {
-                        Thread.sleep(1000L / FPS);
+                        Thread.sleep(1000L / Prefs.limitFps(prefs, FPS));
                     } catch (InterruptedException ignored) {
                     }
                 }

@@ -15,10 +15,13 @@ public final class Prefs {
     public static final String KEY_DATA_INTERVAL = "data_interval";
     public static final String KEY_DATA_URL = "data_url";
     public static final String KEY_DATA_CONSENT = "data_consent";
+    public static final String KEY_MAX_FPS = "max_fps";
     public static final String KEY_THEME = "theme";
 
     public static final long INTERVAL_NEVER = 0;
     public static final long INTERVAL_MANUAL = -1;
+
+    public static final int MAX_FPS_AUTOMATIC = 0;
 
     public static final long DEFAULT_LOCATION_INTERVAL = 3 * 60 * 60; // seconds
     public static final long DEFAULT_DATA_INTERVAL = BuildConfig.WIND_FIELD_UPDATE_INTERVAL * 60; // seconds
@@ -76,6 +79,21 @@ public final class Prefs {
             Log.i(TAG, "keeping wind data updates enabled for an existing installation");
             prefs.edit().putBoolean(KEY_DATA_CONSENT, true).apply();
         }
+    }
+
+    public static int limitFps(SharedPreferences prefs, int fps) {
+        final String value = prefs.getString(KEY_MAX_FPS, null); // string for ListPreference
+        if (value != null) {
+            try {
+                final int max = Integer.parseInt(value);
+                if (max > MAX_FPS_AUTOMATIC) {
+                    return Math.min(fps, max);
+                }
+            } catch (NumberFormatException ex) {
+                // no limit
+            }
+        }
+        return fps;
     }
 
     public static int themeIndex(Context context) {

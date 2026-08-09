@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.PowerManager;
 import android.service.wallpaper.WallpaperService;
@@ -172,6 +173,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         @Override
         public void run() {
             final float dpiScale = getResources().getDisplayMetrics().density;
+            final SharedPreferences prefs = Prefs.get(WindyWallpaperServiceBase.this);
             NativeRenderer renderer = null;
             try {
                 renderer = new NativeRenderer(holder.getSurface(), themeIndex(), dpiScale);
@@ -215,7 +217,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
                     renderer.render();
 
                     final int fps = isPowerSaveMode.get() ? FPS_POWERSAVE : easing ? FPS_HIGH : FPS_NORMAL;
-                    sleepFrame(1000L / fps);
+                    sleepFrame(1000L / Prefs.limitFps(prefs, fps));
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "render thread failed", t);

@@ -55,6 +55,10 @@
     <string name="data_consent_once">Update once</string>
     <string name="data_consent_automatic">Update automatically</string>
 
+    <string name="rendering">Rendering</string>
+    <string name="max_fps">Frame rate limit</string>
+    <string name="max_fps_summary">Limit the frame rate to reduce power consumption (%s)</string>
+
     <string name="about">About</string>
     <string name="source_code">Source code</string>
     <string name="source_code_url" translatable="false">https://github.com/pgaskin/windy</string>
