@@ -258,6 +258,28 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetOffs
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetColors(
+    _env: EnvUnowned,
+    _class: JClass,
+    handle: jlong,
+    slow: jint,
+    fast: jint,
+    bg1: jint,
+    bg2: jint,
+) {
+    if handle == 0 {
+        return;
+    }
+    let st = unsafe { state(handle) };
+    let mut config = st.renderer.config().clone();
+    config.slow_wind_color = unpack_argb(slow);
+    config.fast_wind_color = unpack_argb(fast);
+    config.bg_color1 = unpack_argb(bg1);
+    config.bg_color2 = unpack_argb(bg2);
+    st.renderer.set_config(&st.device, config);
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetUserLocation(
     _env: EnvUnowned,
     _class: JClass,
@@ -330,17 +352,49 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeDestroy
     drop(unsafe { Box::from_raw(handle as *mut State) });
 }
 
+// must match java
+const COLOR_SLOW: jint = 0;
+const COLOR_FAST: jint = 1;
+const COLOR_BG1: jint = 2;
+const COLOR_BG2: jint = 3;
+
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeColor(
     _env: EnvUnowned,
     _class: JClass,
     theme_index: jint,
+    component: jint,
 ) -> jint {
     let theme = Theme::ALL
         .get(theme_index.max(0) as usize)
         .copied()
         .unwrap_or(Theme::BLUE);
-    let [r, g, b] = theme.wallpaper_color;
+    let rgba = match component {
+        COLOR_SLOW => theme.slow_wind_color,
+        COLOR_FAST => theme.fast_wind_color,
+        // alpha doesn't matter
+        COLOR_BG1 => opaque(theme.bg_color1),
+        COLOR_BG2 => opaque(theme.bg_color2),
+        _ => {
+            let [r, g, b] = theme.wallpaper_color;
+            [r, g, b, 1.0]
+        }
+    };
+    pack_argb(rgba)
+}
+
+/// `[r, g, b, a]` from `[0,1]` to packed `0xAARRGGBB`.
+fn pack_argb(rgba: [f32; 4]) -> jint {
     let to8 = |c: f32| ((c.clamp(0.0, 1.0) * 255.0).round() as i32) & 0xff;
-    (to8(r) << 16) | (to8(g) << 8) | to8(b)
+    (to8(rgba[3]) << 24) | (to8(rgba[0]) << 16) | (to8(rgba[1]) << 8) | to8(rgba[2])
+}
+
+/// Packed `0xAARRGGBB` to `[r, g, b, a]` from `[0,1]`.
+fn unpack_argb(argb: jint) -> [f32; 4] {
+    let at = |shift: u32| ((argb >> shift) & 0xff) as f32 / 255.0;
+    [at(16), at(8), at(0), at(24)]
+}
+
+fn opaque(rgba: [f32; 4]) -> [f32; 4] {
+    [rgba[0], rgba[1], rgba[2], 1.0]
 }

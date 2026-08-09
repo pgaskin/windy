@@ -45,6 +45,8 @@
 
     </FrameLayout>
 
+    <include layout="@layout/custom_panel" />
+
     <HorizontalScrollView
         android:id="@+id/theme_scroll"
         android:layout_width="match_parent"

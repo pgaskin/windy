@@ -151,6 +151,16 @@ impl Theme {
         wallpaper_color: rgb8(0x96241AFF),
     };
 
+    /// Initial custom colors for user-defined theme.
+    pub const CUSTOM: Theme = Theme {
+        name: "Custom",
+        slow_wind_color: [0.60, 0.75, 0.95, 0.30],
+        fast_wind_color: [1.00, 1.00, 1.00, 0.35],
+        bg_color1: rgba8(0x1B2735FF),
+        bg_color2: rgba8(0x3A5A80FF),
+        wallpaper_color: rgb8(0x2B4055FF),
+    };
+
     // The order of this array defines the theme index shared by the renderer
     // and the Android app. The trailing `// Label` comment on each entry is the
     // wallpaper picker label; the app's Gradle theme codegen parses this array
@@ -168,6 +178,8 @@ impl Theme {
         Theme::TURQUOISE_WHIRLED, // Your whirled, Turquoise
         Theme::SKY_BLUE_WHIRLED,  // Your whirled, Sky blue
         Theme::SPARK_WHIRLED,     // Your whirled, Spark
+        // custom should be last, even when adding new themes
+        Theme::CUSTOM, // Windy, Custom
     ];
 }
 

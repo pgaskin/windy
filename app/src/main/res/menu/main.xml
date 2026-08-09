@@ -6,6 +6,12 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
+        android:id="@+id/action_customize"
+        android:icon="@drawable/ic_brush"
+        android:showAsAction="always"
+        android:title="@string/customize" />
+
+    <item
         android:id="@+id/action_settings"
         android:icon="@drawable/ic_settings"
         android:showAsAction="always"

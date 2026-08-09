@@ -43,6 +43,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
     private int rendererTheme = -1;
     private int windFieldSeq = -1;
     private int locationSeq = -1;
+    private int customColorSeq = -1;
 
     private volatile boolean staticMode;
     private volatile boolean settingsDirty;
@@ -180,6 +181,8 @@ public abstract class WindyWallpaperRenderer extends Thread {
                     }
                 }
 
+                applyCustomColors(renderer, theme, fresh);
+
                 // Only refresh the location when the wind texture changes,
                 // since refreshing saves it, which bumps seq and would make a
                 // static frame stale immediately.
@@ -241,7 +244,8 @@ public abstract class WindyWallpaperRenderer extends Thread {
         return !settled || resized
                 || themeIndex != rendererTheme
                 || windFieldSeq != WindField.currentSeq()
-                || locationSeq != LocationConsentActivity.currentSeq();
+                || locationSeq != LocationConsentActivity.currentSeq()
+                || (themeIndex == Themes.CUSTOM && customColorSeq != CustomTheme.currentSeq());
     }
 
     /** Sleeps until the static-mode frame needs to be updated. */
@@ -253,6 +257,19 @@ public abstract class WindyWallpaperRenderer extends Thread {
             wait();
         } catch (InterruptedException ignored) {
         }
+    }
+
+    private void applyCustomColors(WindyWallpaperNative renderer, int theme, boolean fresh) {
+        if (theme != Themes.CUSTOM) {
+            return;
+        }
+        final int seq = CustomTheme.currentSeq();
+        if (!fresh && seq == customColorSeq) {
+            return;
+        }
+        final int[] colors = CustomTheme.colors(context);
+        renderer.setColors(colors[CustomTheme.SLOW], colors[CustomTheme.FAST], colors[CustomTheme.BG1], colors[CustomTheme.BG2]);
+        customColorSeq = seq;
     }
 
     private void applyWindField(WindyWallpaperNative renderer) {

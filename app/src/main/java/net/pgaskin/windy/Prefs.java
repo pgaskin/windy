@@ -20,6 +20,9 @@ public final class Prefs {
     public static final String KEY_STATIC_MODE = "static_mode";
     public static final String KEY_THEME = "theme";
     public static final String KEY_GPU_MODEL = "gpu_model";
+    public static final String KEY_CUSTOM_COLORS = "custom_colors"; // current
+    public static final String KEY_CUSTOM_PRESET = "custom_preset"; // if unmodified
+    public static final String KEY_CUSTOM_PRESETS = "custom_presets"; // saved
 
     public static final long INTERVAL_NEVER = 0;
     public static final long INTERVAL_MANUAL = -1;

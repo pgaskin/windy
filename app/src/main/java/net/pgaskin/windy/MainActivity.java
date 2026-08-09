@@ -3,6 +3,7 @@
 package net.pgaskin.windy;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.WallpaperInfo;
 import android.app.WallpaperManager;
 import android.content.ActivityNotFoundException;
@@ -10,28 +11,54 @@ import android.content.ComponentName;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Insets;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toolbar;
 import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 
     private static final int REQUEST_SET_WALLPAPER = 1;
 
+    private static final int[] CUSTOM_COLOR_LABELS = {
+            R.string.custom_color_slow,
+            R.string.custom_color_fast,
+            R.string.custom_color_bg1,
+            R.string.custom_color_bg2,
+            R.string.custom_color_tint,
+    };
+
     private WindyWallpaperView preview;
     private HorizontalScrollView themeScroll;
     private LinearLayout themeList;
     private int themeIndex;
+
+    private MenuItem customizeItem;
+    private View customPanel;
+    private Spinner presetSpinner;
+    private Button presetDelete;
+    private final ColorSwatchView[] swatches = new ColorSwatchView[CustomTheme.COUNT];
+    private ImageView customCardImage;
+    private final Runnable customColorListener = this::refreshCustomColors;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,9 +71,14 @@ public class MainActivity extends Activity {
 
         final Toolbar toolbar = findViewById(R.id.toolbar);
         toolbar.inflateMenu(R.menu.main);
+        customizeItem = toolbar.getMenu().findItem(R.id.action_customize);
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_settings) {
                 startActivity(new Intent(this, SettingsActivity.class));
+                return true;
+            }
+            if (item.getItemId() == R.id.action_customize) {
+                showCustomizeDialog();
                 return true;
             }
             return false;
@@ -57,9 +89,24 @@ public class MainActivity extends Activity {
         applyInsets(toolbar);
         applySystemBarAppearance();
 
+        buildCustomPanel();
+
         themeIndex = initialThemeIndex();
         buildThemeCards();
         selectTheme(themeIndex, false);
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        CustomTheme.addListener(customColorListener);
+        refreshCustomColors();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        CustomTheme.removeListener(customColorListener);
     }
 
     @Override
@@ -87,6 +134,7 @@ public class MainActivity extends Activity {
             final Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
             toolbar.setPadding(bars.left, bars.top, bars.right, 0);
             themeScroll.setPadding(bars.left, themeScroll.getPaddingTop(), bars.right, bars.bottom);
+            customPanel.setPadding(bars.left, customPanel.getPaddingTop(), bars.right, 0);
             return insets;
         });
     }
@@ -122,6 +170,9 @@ public class MainActivity extends Activity {
             final ImageView image = card.findViewById(R.id.theme_image);
             image.setImageResource(theme.thumbnail);
             image.setClipToOutline(true);
+            if (theme.index == Themes.CUSTOM) {
+                customCardImage = image; // shows the picked colors instead
+            }
             ((TextView) card.findViewById(R.id.theme_name)).setText(theme.name);
             card.setContentDescription(theme.label);
             card.setOnClickListener(v -> selectTheme(theme.index, true));
@@ -136,6 +187,12 @@ public class MainActivity extends Activity {
         for (int i = 0; i < themeList.getChildCount(); i++) {
             themeList.getChildAt(i).setSelected(i == index);
         }
+        final boolean custom = index == Themes.CUSTOM;
+        customPanel.setVisibility(custom ? View.VISIBLE : View.GONE);
+        customizeItem.setVisible(!custom); // it copies the shown theme into the custom one
+        if (custom) {
+            refreshPresets();
+        }
         final View card = themeList.getChildAt(index);
         themeScroll.post(() -> {
             final int x = card.getLeft() - (themeScroll.getWidth() - card.getWidth()) / 2;
@@ -145,6 +202,165 @@ public class MainActivity extends Activity {
                 themeScroll.scrollTo(x, 0);
             }
         });
+    }
+
+    private void buildCustomPanel() {
+        customPanel = findViewById(R.id.custom_panel);
+        presetSpinner = findViewById(R.id.preset_spinner);
+        presetDelete = findViewById(R.id.preset_delete);
+
+        final LinearLayout swatchList = findViewById(R.id.swatch_list);
+        final LayoutInflater inflater = getLayoutInflater();
+        for (int i = 0; i < CustomTheme.COUNT; i++) {
+            final int component = i;
+            final View item = inflater.inflate(R.layout.custom_swatch, swatchList, false);
+            final String label = getString(CUSTOM_COLOR_LABELS[component]);
+            swatches[component] = item.findViewById(R.id.swatch_color);
+            ((TextView) item.findViewById(R.id.swatch_label)).setText(label);
+            item.setContentDescription(label);
+            item.setOnClickListener(v -> pickCustomColor(component, label));
+            swatchList.addView(item);
+        }
+
+        presetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                final Object item = parent.getItemAtPosition(position);
+                final String name = item == null ? "" : item.toString();
+                // ignore the placeholder and the selection we just applied
+                // (setSelection notifies again when the spinner is laid out)
+                if (!name.isEmpty() && !name.equals(CustomTheme.presetName(MainActivity.this))
+                        && CustomTheme.preset(MainActivity.this, name) != null) {
+                    CustomTheme.loadPreset(MainActivity.this, name);
+                    refreshPresets();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        findViewById(R.id.preset_save).setOnClickListener(v -> showSavePresetDialog());
+        presetDelete.setOnClickListener(v -> showDeletePresetDialog());
+    }
+
+    private void pickCustomColor(int component, String label) {
+        final int initial = CustomTheme.color(this, component);
+        ColorPickerDialog.show(this, label, initial, CustomTheme.hasAlpha(component),
+                color -> CustomTheme.setColor(this, component, color, false), // live preview
+                color -> {
+                    CustomTheme.setColor(this, component, color, true);
+                    updatePresetSelection();
+                });
+    }
+
+    private void updatePresetSelection() {
+        final String name = CustomTheme.presetName(this);
+        if (!name.isEmpty()) {
+            final CustomTheme.Preset preset = CustomTheme.preset(this, name);
+            final int[] colors = CustomTheme.colors(this);
+            boolean same = preset != null;
+            for (int i = 0; same && i < CustomTheme.COUNT; i++) {
+                same = preset.colors[i] == colors[i];
+            }
+            if (!same) {
+                CustomTheme.setPresetName(this, "");
+            }
+        }
+        refreshPresets();
+    }
+
+    private void refreshCustomColors() {
+        final int[] colors = CustomTheme.colors(this);
+        for (int i = 0; i < swatches.length; i++) {
+            swatches[i].setColor(colors[i]);
+        }
+        if (customCardImage != null) {
+            customCardImage.setImageDrawable(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{
+                    0xFF000000 | colors[CustomTheme.BG1],
+                    0xFF000000 | colors[CustomTheme.BG2],
+            }));
+        }
+    }
+
+    private void refreshPresets() {
+        refreshCustomColors();
+
+        final List<CustomTheme.Preset> presets = CustomTheme.presets(this);
+        final String selected = CustomTheme.presetName(this);
+        final List<String> items = new ArrayList<>();
+        if (selected.isEmpty()) {
+            items.add(getString(presets.isEmpty() ? R.string.preset_none : R.string.preset_unsaved));
+        }
+        for (final CustomTheme.Preset preset : presets) {
+            items.add(preset.name);
+        }
+
+        final ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        presetSpinner.setAdapter(adapter);
+        presetSpinner.setSelection(Math.max(items.indexOf(selected), 0));
+        presetDelete.setEnabled(!selected.isEmpty());
+    }
+
+    private void showSavePresetDialog() {
+        final EditText input = new EditText(this);
+        input.setSingleLine();
+        input.setHint(R.string.preset_name);
+        final String current = CustomTheme.presetName(this);
+        input.setText(current.isEmpty()
+                ? getString(R.string.preset_default_name, CustomTheme.presets(this).size() + 1)
+                : current);
+        input.selectAll();
+
+        final int padding = Math.round(20 * getResources().getDisplayMetrics().density);
+        final LinearLayout container = new LinearLayout(this);
+        container.setPadding(padding, padding / 2, padding, 0);
+        container.addView(input, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.save_preset_title)
+                .setView(container)
+                .setPositiveButton(R.string.save_preset, (dialog, which) -> {
+                    final String name = CustomTheme.normalizeName(input.getText().toString());
+                    if (!name.isEmpty()) {
+                        CustomTheme.savePreset(this, name);
+                        refreshPresets();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showDeletePresetDialog() {
+        final String name = CustomTheme.presetName(this);
+        if (name.isEmpty()) {
+            return;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.delete_preset)
+                .setMessage(getString(R.string.delete_preset_message, name))
+                .setPositiveButton(R.string.delete, (dialog, which) -> {
+                    CustomTheme.deletePreset(this, name);
+                    refreshPresets();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showCustomizeDialog() {
+        final Themes.Entry theme = Themes.get(themeIndex);
+        new AlertDialog.Builder(this)
+                .setTitle(R.string.customize)
+                .setMessage(getString(R.string.customize_message, theme.name))
+                .setPositiveButton(R.string.customize_continue, (dialog, which) -> {
+                    CustomTheme.setPresetName(this, "");
+                    CustomTheme.setColors(this, CustomTheme.themeColors(theme.index), true);
+                    selectTheme(Themes.CUSTOM, true);
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void setAsWallpaper() {

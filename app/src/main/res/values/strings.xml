@@ -14,6 +14,25 @@
     <string name="set_as_wallpaper">Set as wallpaper</string>
     <string name="set_wallpaper_failed">Couldn\'t open the live wallpaper picker</string>
 
+    <string name="customize">Customize</string>
+    <string name="customize_message">Replace the custom theme\'s colors with the ones from %1$s?</string>
+    <string name="customize_continue">Continue</string>
+    <string name="custom_color_slow">Slow wind</string>
+    <string name="custom_color_fast">Fast wind</string>
+    <string name="custom_color_bg1">Background 1</string>
+    <string name="custom_color_bg2">Background 2</string>
+    <string name="custom_color_tint">System tint</string>
+    <string name="presets">Presets</string>
+    <string name="preset_unsaved">Unsaved colors</string>
+    <string name="preset_none">No presets</string>
+    <string name="save_preset">Save</string>
+    <string name="save_preset_title">Save preset</string>
+    <string name="preset_name">Name</string>
+    <string name="preset_default_name">Custom %1$d</string>
+    <string name="delete_preset">Delete</string>
+    <string name="delete_preset_message">Delete the preset %1$s?</string>
+    <string name="delete">Delete</string>
+
     <string name="location">Location</string>
     <string name="location_unset">Not set</string>
     <string name="location_manual">Manual</string>

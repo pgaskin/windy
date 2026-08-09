@@ -78,6 +78,7 @@ abstract class GenerateThemesTask extends DefaultTask {
             def sep = full.lastIndexOf(", ")
             themes << [
                 index    : themes.size(),
+                ident    : ident,
                 className: toPascal(ident),
                 resName  : "windy_" + ident.toLowerCase().replace("_", ""),
                 label    : full,
@@ -139,6 +140,11 @@ abstract class GenerateThemesTask extends DefaultTask {
             sb << "        new Entry(${t.index}, ${javaStr(t.name)}, ${javaStr(t.label)}, R.drawable.${t.resName}, ${javaStr(PKG + "." + OUTER + "\$" + t.className)}),\n"
         }
         sb << "    };\n\n"
+        def custom = themes.find { it.ident == "CUSTOM" }
+        if (custom == null) {
+            throw new GradleException("Could not find `Theme::CUSTOM` in `Theme::ALL` in config.rs (the app's custom colors need it)")
+        }
+        sb << "    public static final int CUSTOM = ${custom.index};\n\n"
         sb << "    /** Returns a theme by index, clamped to a valid one. */\n"
         sb << "    public static Entry get(int index) {\n"
         sb << "        return ALL[Math.max(0, Math.min(index, ALL.length - 1))];\n"
