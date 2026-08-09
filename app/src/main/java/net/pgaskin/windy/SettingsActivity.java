@@ -75,6 +75,7 @@ public class SettingsActivity extends Activity {
         private Preference locationPref;
         private Preference backgroundLocationPref;
         private Preference updateNowPref;
+        private SwitchPreference meteredPref;
         private EditTextPreference urlPref;
         private Preference devicePref;
         private PreferenceCategory aboutCategory;
@@ -163,6 +164,13 @@ public class SettingsActivity extends Activity {
             dataInterval.setEntryValues(R.array.data_interval_values);
             dataInterval.setDefaultValue(String.valueOf(Prefs.DEFAULT_DATA_INTERVAL));
             dataCategory.addPreference(dataInterval);
+
+            meteredPref = new SwitchPreference(context);
+            meteredPref.setKey(Prefs.KEY_DATA_METERED);
+            meteredPref.setTitle(R.string.data_metered);
+            meteredPref.setSummary(R.string.data_metered_summary);
+            meteredPref.setDefaultValue(false);
+            dataCategory.addPreference(meteredPref);
 
             urlPref = new EditTextPreference(context) {
                 @Override
@@ -289,6 +297,10 @@ public class SettingsActivity extends Activity {
                     WindFieldUpdateService.scheduleStartup(context);
                     WindField.invalidate();
                     break;
+                case Prefs.KEY_DATA_METERED:
+                    WindFieldUpdateService.schedulePeriodic(context); // re-schedule with the new network constraint
+                    WindFieldUpdateService.scheduleStartup(context);
+                    break;
                 case Prefs.KEY_DATA_URL:
                     WindFieldUpdateService.clearEtag(context);
                     WindField.invalidate();
@@ -328,6 +340,8 @@ public class SettingsActivity extends Activity {
                     : dataInterval == Prefs.INTERVAL_NEVER
                       ? getString(R.string.data_builtin)
                       : formatUpdatedSource(context));
+
+            meteredPref.setEnabled(dataInterval > 0); // only limits automatic updates
 
             urlPref.setSummary(Prefs.dataUrl(context));
 

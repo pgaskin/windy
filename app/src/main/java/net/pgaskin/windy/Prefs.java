@@ -14,6 +14,7 @@ public final class Prefs {
     public static final String KEY_LOCATION_INTERVAL = "location_interval";
     public static final String KEY_DATA_INTERVAL = "data_interval";
     public static final String KEY_DATA_URL = "data_url";
+    public static final String KEY_DATA_METERED = "data_metered";
     public static final String KEY_DATA_CONSENT = "data_consent";
     public static final String KEY_MAX_FPS = "max_fps";
     public static final String KEY_STATIC_MODE = "static_mode";
@@ -56,6 +57,13 @@ public final class Prefs {
     public static String dataUrl(Context context) {
         final String url = get(context).getString(KEY_DATA_URL, null);
         return url == null || url.trim().isEmpty() ? BuildConfig.WIND_FIELD_API_URL : url.trim();
+    }
+
+    /**
+     * Whether automatic updates may use metered connections.
+     */
+    public static boolean dataMetered(Context context) {
+        return get(context).getBoolean(KEY_DATA_METERED, false);
     }
 
     /**

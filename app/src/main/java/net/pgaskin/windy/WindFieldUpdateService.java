@@ -230,7 +230,8 @@ public class WindFieldUpdateService extends JobService {
                 default:
                     throw new IllegalArgumentException("Unknown jobID");
             }
-            builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_UNMETERED);
+            // NOT_ROAMING still excludes roaming connections
+            builder.setRequiredNetworkType(Prefs.dataMetered(context) ? JobInfo.NETWORK_TYPE_NOT_ROAMING : JobInfo.NETWORK_TYPE_UNMETERED);
             builder.setEstimatedNetworkBytes(256 * 1000, 0);
             builder.setBackoffCriteria(BuildConfig.WIND_FIELD_UPDATE_INTERVAL_MINIMUM * 60 * 1000, JobInfo.BACKOFF_POLICY_EXPONENTIAL);
 

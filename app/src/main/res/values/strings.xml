@@ -45,6 +45,8 @@
     <string name="data_builtin">Using built-in data since updates are disabled</string>
     <string name="data_interval">Data update interval</string>
     <string name="data_interval_summary">Interval to refresh the wind data at (%s)</string>
+    <string name="data_metered">Update on mobile data</string>
+    <string name="data_metered_summary">Update over metered connections too. Roaming connections are never used. Each update is ~250 kB.</string>
     <string name="data_url">Wind texture URL</string>
     <string name="data_url_invalid">Enter a valid https URL</string>
     <string name="reset">Reset</string>
