@@ -1,0 +1,11 @@
+* Add preview activity.
+* Add settings screen.
+* Make location updates configurable.
+* Make data updates configurable and opt-in.
+* Make data URL configurable.
+* Make max framerate configurable.
+* Add static mode (eliminates background cpu/gpu/power usage).
+* Add deep blue theme.
+* Refactor render thread.
+* Improve frame timing.
+* Reproducible builds.
