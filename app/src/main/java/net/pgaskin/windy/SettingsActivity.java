@@ -14,6 +14,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Insets;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -75,6 +76,7 @@ public class SettingsActivity extends Activity {
         private Preference backgroundLocationPref;
         private Preference updateNowPref;
         private EditTextPreference urlPref;
+        private Preference devicePref;
         private PreferenceCategory aboutCategory;
         private Preference dataSourcePref;
         private boolean updating;
@@ -126,7 +128,8 @@ public class SettingsActivity extends Activity {
 
             final Preference privacy = new Preference(context);
             privacy.setOrder(3);
-            privacy.setLayoutResource(R.layout.preference_note);
+            privacy.setLayoutResource(R.layout.preference_note); // the title is the note text
+            privacy.setTitle(R.string.location_privacy_note);
             privacy.setSelectable(false);
             locationCategory.addPreference(privacy);
 
@@ -209,6 +212,11 @@ public class SettingsActivity extends Activity {
             staticMode.setDefaultValue(false);
             renderingCategory.addPreference(staticMode);
 
+            devicePref = new Preference(context);
+            devicePref.setLayoutResource(R.layout.preference_note);
+            devicePref.setSelectable(false);
+            renderingCategory.addPreference(devicePref);
+
             aboutCategory = new PreferenceCategory(context);
             aboutCategory.setTitle(R.string.about);
             screen.addPreference(aboutCategory);
@@ -285,6 +293,8 @@ public class SettingsActivity extends Activity {
                     WindFieldUpdateService.clearEtag(context);
                     WindField.invalidate();
                     break;
+                case Prefs.KEY_GPU_MODEL:
+                    break; // just refresh
                 default:
                     return;
             }
@@ -320,6 +330,10 @@ public class SettingsActivity extends Activity {
                       : formatUpdatedSource(context));
 
             urlPref.setSummary(Prefs.dataUrl(context));
+
+            final String gpu = Prefs.gpuModel(context); // only known once the wallpaper has rendered
+            final String device = gpu != null ? getString(R.string.device_note, Build.MODEL, gpu) : Build.MODEL;
+            devicePref.setTitle(getString(R.string.device_note_os, device, Build.VERSION.RELEASE, Build.VERSION.SDK_INT, Build.ID));
 
             // the data source is only known for the default API
             if (isDefaultDataHost(context)) {

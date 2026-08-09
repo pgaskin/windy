@@ -44,6 +44,11 @@ public final class WindyWallpaperNative implements AutoCloseable {
         nativeSetUserLocation(handle, lng, lat);
     }
 
+    /** The name of the GPU the renderer is using, or null if unknown. */
+    public String gpuModel() {
+        return nativeGpuModel(handle);
+    }
+
     // row-major rgba8888
     public void setWindField(byte[] rgba, int width, int height) {
         nativeSetWindField(handle, rgba, width, height);
@@ -68,6 +73,7 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native void nativeSetOffset(long handle, float offset);
     private static native void nativeSetUserLocation(long handle, float lng, float lat);
     private static native void nativeSetWindField(long handle, byte[] rgba, int width, int height);
+    private static native String nativeGpuModel(long handle);
     private static native void nativeDestroy(long handle);
     private static native int nativeThemeColor(int themeIndex);
 }

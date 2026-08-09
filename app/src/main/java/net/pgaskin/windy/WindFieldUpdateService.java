@@ -77,7 +77,7 @@ public class WindFieldUpdateService extends JobService {
         }
 
         final HttpsURLConnection conn = (HttpsURLConnection) (net != null ? net.openConnection(url) : url.openConnection());
-        conn.setRequestProperty("User-Agent", "WindyLiveWallpaper/" + BuildConfig.VERSION_NAME + " (" + BuildConfig.APPLICATION_ID + " " + BuildConfig.VERSION_CODE + "; " + BuildConfig.BUILD_TYPE + "; " + why + ") " + System.getProperty("http.agent"));
+        conn.setRequestProperty("User-Agent", userAgent(context, why));
 
         String etag = getPreferences(context).getString("etag", null);
         if (etag != null) {
@@ -110,6 +110,42 @@ public class WindFieldUpdateService extends JobService {
                 .apply();
 
         Log.i(TAG, "successfully checked for wind field updates");
+    }
+
+    private static String userAgent(Context context, String why) {
+        final String gpu = sanitize(Prefs.gpuModel(context)); // only known once the wallpaper has rendered
+        final String model = sanitize(Build.MODEL);
+        final String build = sanitize(Build.ID);
+
+        final StringBuilder sb = new StringBuilder();
+        sb.append("WindyLiveWallpaper/").append(BuildConfig.VERSION_NAME);
+        sb.append(" (").append(BuildConfig.APPLICATION_ID).append(' ').append(BuildConfig.VERSION_CODE);
+        sb.append("; ").append(BuildConfig.BUILD_TYPE);
+        sb.append("; ").append(why).append(')');
+        sb.append(" Android/").append(Build.VERSION.SDK_INT);
+        sb.append(" (").append(model != null ? model : "unknown");
+        if (gpu != null) {
+            sb.append("; ").append(gpu);
+        }
+        if (build != null) {
+            sb.append("; ").append(build);
+        }
+        return sb.append(')').toString();
+    }
+
+    private static String sanitize(String value) {
+        if (value == null) {
+            return null;
+        }
+        final StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < value.length() && sb.length() < 64; i++) {
+            final char c = value.charAt(i);
+            if (c >= 0x20 && c < 0x7f && c != ';') {
+                sb.append(c);
+            }
+        }
+        final String trimmed = sb.toString().trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     public static long lastUpdated(Context context) {

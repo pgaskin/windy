@@ -168,6 +168,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
                     renderer = new WindyWallpaperNative(holder.getSurface(), theme, dpiScale);
                     renderer.setOffset(staticMode ? 0.0f : easedOffset);
                     rendererTheme = theme;
+                    Prefs.setGpuModel(prefs, renderer.gpuModel()); // only writes if it changed
                     settled = false;
                 }
 

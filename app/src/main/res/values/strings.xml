@@ -60,6 +60,8 @@
     <string name="max_fps_summary">Limit the frame rate to reduce power consumption (%s)</string>
     <string name="static_mode">Static mode</string>
     <string name="static_mode_summary">Render a still frame on each location/data update instead of animating continuously (effectively eliminates power/cpu/gpu usage).</string>
+    <string name="device_note">%1$s (%2$s)</string>
+    <string name="device_note_os">%1$s, Android %2$s, SDK %3$d, %4$s</string>
 
     <string name="about">About</string>
     <string name="source_code">Source code</string>

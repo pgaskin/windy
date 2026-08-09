@@ -5,8 +5,8 @@ use std::time::Instant;
 
 use jni::EnvUnowned;
 use jni::errors::LogErrorAndDefault;
-use jni::objects::{JByteArray, JClass, JObject};
-use jni::sys::{jfloat, jint, jlong};
+use jni::objects::{JByteArray, JClass, JObject, JString};
+use jni::sys::{jfloat, jint, jlong, jstring};
 
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
@@ -20,6 +20,7 @@ struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     renderer: Renderer,
+    gpu_model: String,
     last_frame: Instant,
     _instance: wgpu::Instance, // MUST be last so it outlives everything else
 }
@@ -60,7 +61,8 @@ impl State {
             .into_iter()
             .find(|a| a.is_surface_supported(&surface))
             .ok_or_else(|| "no suitable gpu adapter".to_string())?;
-        log::info!("using gpu adapter: {:?}", adapter.get_info());
+        let adapter_info = adapter.get_info();
+        log::info!("using gpu adapter: {:?}", adapter_info);
 
         let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
             label: Some("windy.device"),
@@ -108,6 +110,7 @@ impl State {
             device,
             queue,
             renderer,
+            gpu_model: adapter_info.name,
             last_frame: Instant::now(),
             _instance: instance,
         })
@@ -296,6 +299,23 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetWind
         Ok::<(), jni::errors::Error>(()) // leave unchanged on error
     })
     .resolve::<LogErrorAndDefault>();
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeGpuModel<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass,
+    handle: jlong,
+) -> jstring {
+    if handle == 0 {
+        return std::ptr::null_mut();
+    }
+    let st = unsafe { state(handle) };
+    env.with_env(|env| -> Result<JString<'local>, jni::errors::Error> {
+        env.new_string(&st.gpu_model) // returns null on error
+    })
+    .resolve::<LogErrorAndDefault>()
+    .into_raw()
 }
 
 #[unsafe(no_mangle)]

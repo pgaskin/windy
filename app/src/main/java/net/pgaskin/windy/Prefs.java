@@ -18,6 +18,7 @@ public final class Prefs {
     public static final String KEY_MAX_FPS = "max_fps";
     public static final String KEY_STATIC_MODE = "static_mode";
     public static final String KEY_THEME = "theme";
+    public static final String KEY_GPU_MODEL = "gpu_model";
 
     public static final long INTERVAL_NEVER = 0;
     public static final long INTERVAL_MANUAL = -1;
@@ -107,6 +108,21 @@ public final class Prefs {
 
     public static void setThemeIndex(Context context, int index) {
         get(context).edit().putInt(KEY_THEME, index).apply();
+    }
+
+    /** The GPU last used by the renderer, or null if it hasn't run yet. */
+    public static String gpuModel(Context context) {
+        final String model = get(context).getString(KEY_GPU_MODEL, null);
+        return model == null || model.isEmpty() ? null : model;
+    }
+
+    public static void setGpuModel(SharedPreferences prefs, String model) {
+        if (model == null || (model = model.trim()).isEmpty()) {
+            return; // keep whatever we knew before
+        }
+        if (!model.equals(prefs.getString(KEY_GPU_MODEL, null))) {
+            prefs.edit().putString(KEY_GPU_MODEL, model).apply();
+        }
     }
 
     private static long interval(Context context, String key, long def) {
