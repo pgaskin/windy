@@ -65,6 +65,8 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
     private final class WindyEngine extends Engine {
         private WindyWallpaperRenderer renderer;
 
+        // note: this is rate-limited, and also may not take effect until the
+        // screen is turned off and on, or the wallpaper is changed
         private final Runnable customColorListener = this::notifyColorsChanged;
 
         WindyEngine() {
