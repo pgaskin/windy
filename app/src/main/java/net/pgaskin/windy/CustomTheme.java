@@ -13,6 +13,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -23,22 +24,22 @@ public final class CustomTheme {
     private static final String TAG = "CustomTheme";
 
     // do not change the order or add more values (it must match native and saved prefs)
-    public static final int SLOW = 0;
-    public static final int FAST = 1;
-    public static final int BG1 = 2;
-    public static final int BG2 = 3;
-    public static final int TINT = 4;
-    public static final int COUNT = 5;
+    public static final int COLOR_SLOW = 0;
+    public static final int COLOR_FAST = 1;
+    public static final int COLOR_BG1 = 2;
+    public static final int COLOR_BG2 = 3;
+    public static final int COLOR_TINT = 4;
+    public static final int COLOR_COUNT = 5;
 
-    public static boolean hasAlpha(int component) {
-        return component == SLOW || component == FAST; // alpha doesn't affect other colors
+    public static boolean hasAlpha(int color) {
+        return color == COLOR_SLOW || color == COLOR_FAST; // alpha doesn't affect other colors
     }
 
     // do not change the order (it must match native)
-    public static final int LINE_HALF_WIDTH = 0;
-    public static final int PARTICLE_OPACITY = 1;
-    public static final int ALPHA_DECAY = 2;
-    public static final int WIND_SPEED = 3;
+    public static final int PARAM_LINE_HALF_WIDTH = 0;
+    public static final int PARAM_PARTICLE_OPACITY = 1;
+    public static final int PARAM_ALPHA_DECAY = 2;
+    public static final int PARAM_WIND_SPEED = 3;
     public static final int PARAM_COUNT = 4;
 
     /**
@@ -86,8 +87,8 @@ public final class CustomTheme {
     }
 
     public static int[] themeColors(int themeIndex) {
-        final int[] result = new int[COUNT];
-        for (int i = 0; i < COUNT; i++) {
+        final int[] result = new int[COLOR_COUNT];
+        for (int i = 0; i < COLOR_COUNT; i++) {
             result[i] = WindyWallpaperNative.themeColor(themeIndex, i);
         }
         return result;
@@ -120,40 +121,45 @@ public final class CustomTheme {
     }
 
     /**
-     * Updates the colors, applying them to the active renderers.
-     * <p>
-     * When persist is false, the change is only kept in memory (for live
-     * updates while a color is being picked), call {@link #persist} to save it.
+     * Updates the colors and params, applying them to the active renderers.
+     * Either may be null to preserve the current value. When persist is false,
+     * the change is only kept in memory (for live updates while a color is
+     * being picked), call {@link #persist} to save it.
      */
-    public static void setColors(Context context, int[] next, boolean persist) {
-        if (next.length != COUNT) {
-            throw new IllegalArgumentException("expected " + COUNT + " colors");
+    public static void set(Context context, int[] nextColors, float[] nextParams, boolean persist) {
+        if (nextColors != null) {
+            if (nextColors.length != COLOR_COUNT) {
+                throw new IllegalArgumentException("expected " + COLOR_COUNT + " colors");
+            }
+            colors = nextColors.clone();
         }
-        colors = next.clone();
+        if (nextParams != null) {
+            if (nextParams.length != PARAM_COUNT) {
+                throw new IllegalArgumentException("expected " + PARAM_COUNT + " params");
+            }
+            params = nextParams.clone();
+        }
         if (persist) {
             persist(context);
         }
         notifyChanged();
     }
 
-    public static void setColor(Context context, int component, int argb, boolean persist) {
+    public static void setColors(Context context, int[] next, boolean persist) {
+        set(context, next, null, persist);
+    }
+
+    public static void setColor(Context context, int color, int argb, boolean persist) {
         final int[] next = colors(context);
-        if (next[component] == argb) {
+        if (next[color] == argb) {
             return;
         }
-        next[component] = argb;
+        next[color] = argb;
         setColors(context, next, persist);
     }
 
     public static void setParams(Context context, float[] next, boolean persist) {
-        if (next.length != PARAM_COUNT) {
-            throw new IllegalArgumentException("expected " + PARAM_COUNT + " params");
-        }
-        params = next.clone();
-        if (persist) {
-            persist(context);
-        }
-        notifyChanged();
+        set(context, null, next, persist);
     }
 
     public static void setParam(Context context, int param, float value, boolean persist) {
@@ -216,6 +222,13 @@ public final class CustomTheme {
             this.name = name;
             this.colors = colors;
             this.params = params;
+        }
+
+        /**
+         * Whether the current colors and params still match this preset.
+         */
+        public boolean matches(Context context) {
+            return Arrays.equals(colors, colors(context)) && Arrays.equals(params, params(context));
         }
     }
 
@@ -299,8 +312,7 @@ public final class CustomTheme {
             return;
         }
         Prefs.get(context).edit().putString(Prefs.KEY_CUSTOM_PRESET, preset.name).apply();
-        params = preset.params.clone();
-        setColors(context, preset.colors, true); // persists and notifies both
+        set(context, preset.colors, preset.params, true);
     }
 
     public static String presetName(Context context) {
@@ -355,7 +367,7 @@ public final class CustomTheme {
             return result;
         }
         final String[] parts = saved.split(",", -1);
-        for (int i = 0; i < COUNT && i < parts.length; i++) {
+        for (int i = 0; i < COLOR_COUNT && i < parts.length; i++) {
             try {
                 result[i] = (int) Long.parseLong(parts[i].trim(), 16);
             } catch (NumberFormatException ex) {

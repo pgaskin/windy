@@ -288,9 +288,9 @@ public abstract class WindyWallpaperRenderer extends Thread {
             return;
         }
         final int[] colors = CustomTheme.colors(context);
-        renderer.setColors(colors[CustomTheme.SLOW], colors[CustomTheme.FAST], colors[CustomTheme.BG1], colors[CustomTheme.BG2]);
+        renderer.setColors(colors[CustomTheme.COLOR_SLOW], colors[CustomTheme.COLOR_FAST], colors[CustomTheme.COLOR_BG1], colors[CustomTheme.COLOR_BG2]);
         final float[] params = CustomTheme.params(context);
-        renderer.setParams(params[CustomTheme.LINE_HALF_WIDTH], params[CustomTheme.PARTICLE_OPACITY], params[CustomTheme.ALPHA_DECAY], params[CustomTheme.WIND_SPEED]);
+        renderer.setParams(params[CustomTheme.PARAM_LINE_HALF_WIDTH], params[CustomTheme.PARAM_PARTICLE_OPACITY], params[CustomTheme.PARAM_ALPHA_DECAY], params[CustomTheme.PARAM_WIND_SPEED]);
         customSeq = seq;
     }
 

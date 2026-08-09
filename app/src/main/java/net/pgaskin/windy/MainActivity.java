@@ -52,16 +52,55 @@ public class MainActivity extends Activity {
             R.string.custom_color_tint,
     };
 
-    private static final int[] CUSTOM_PARAM_LABELS = {
-            R.string.param_line_width,
-            R.string.param_opacity,
-            R.string.param_trail_decay,
-            R.string.param_wind_speed,
+    private static final class ParamSpec {
+        final int label;
+        final float min, max;
+        final int steps;
+        final int decimals;
+        final boolean logScale; // trail decay only really matters near 1.0
+
+        ParamSpec(int label, float min, float max, int steps, int decimals, boolean logScale) {
+            this.label = label;
+            this.min = min;
+            this.max = max;
+            this.steps = steps;
+            this.decimals = decimals;
+            this.logScale = logScale;
+        }
+
+        float value(int progress) {
+            final float fraction = progress / (float) steps;
+            if (logScale) {
+                final double lo = Math.log1p(-min);
+                final double hi = Math.log1p(-max);
+                return (float) (1.0 - Math.exp(lo + (hi - lo) * fraction));
+            }
+            return min + (max - min) * fraction;
+        }
+
+        int progress(float value) {
+            final double fraction;
+            if (logScale) {
+                final double lo = Math.log1p(-min);
+                final double hi = Math.log1p(-max);
+                fraction = (Math.log1p(-Math.min(value, 0.999999)) - lo) / (hi - lo);
+            } else {
+                fraction = (value - min) / (max - min);
+            }
+            return Math.round((float) (Math.max(0.0, Math.min(fraction, 1.0)) * steps));
+        }
+
+        String text(float value) {
+            return String.format(Locale.getDefault(), "%." + decimals + "f", value);
+        }
+    }
+
+    private static final ParamSpec[] CUSTOM_PARAMS = {
+            new ParamSpec(R.string.param_line_width, 0.25f, 4.0f, 75, 2, false),
+            new ParamSpec(R.string.param_opacity, 0.0f, 2.0f, 100, 2, false),
+            new ParamSpec(R.string.param_trail_decay, 0.95f, 0.9999f, 500, 4, true),
+            new ParamSpec(R.string.param_wind_speed, 0.0f, 0.5f, 100, 3, false),
     };
-    private static final float[] CUSTOM_PARAM_MIN = {0.25f, 0.0f, 0.95f, 0.0f};
-    private static final float[] CUSTOM_PARAM_MAX = {4.0f, 2.0f, 0.9999f, 0.5f};
-    private static final int[] CUSTOM_PARAM_STEPS = {75, 100, 500, 100};
-    private static final int[] CUSTOM_PARAM_DECIMALS = {2, 2, 4, 3};
 
     private WindyWallpaperView preview;
     private HorizontalScrollView themeScroll;
@@ -72,9 +111,9 @@ public class MainActivity extends Activity {
     private View customPanel;
     private Spinner presetSpinner;
     private Button presetDelete;
-    private final ColorSwatchView[] swatches = new ColorSwatchView[CustomTheme.COUNT];
+    private final ColorSwatchView[] swatches = new ColorSwatchView[CustomTheme.COLOR_COUNT];
     private ImageView customCardImage;
-    private final Runnable customColorListener = this::refreshCustomColors;
+    private final Runnable customThemeListener = this::refreshCustomColors;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -115,14 +154,14 @@ public class MainActivity extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
-        CustomTheme.addListener(customColorListener);
+        CustomTheme.addListener(customThemeListener);
         refreshCustomColors();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        CustomTheme.removeListener(customColorListener);
+        CustomTheme.removeListener(customThemeListener);
     }
 
     @Override
@@ -227,7 +266,7 @@ public class MainActivity extends Activity {
 
         final LinearLayout swatchList = findViewById(R.id.swatch_list);
         final LayoutInflater inflater = getLayoutInflater();
-        for (int i = 0; i < CustomTheme.COUNT; i++) {
+        for (int i = 0; i < CustomTheme.COLOR_COUNT; i++) {
             final int component = i;
             final View item = inflater.inflate(R.layout.custom_swatch, swatchList, false);
             final String label = getString(CUSTOM_COLOR_LABELS[component]);
@@ -279,17 +318,18 @@ public class MainActivity extends Activity {
         for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
             final int param = i;
             final View row = inflater.inflate(R.layout.custom_param, container, false);
-            ((TextView) row.findViewById(R.id.param_label)).setText(CUSTOM_PARAM_LABELS[param]);
+            final ParamSpec spec = CUSTOM_PARAMS[param];
+            ((TextView) row.findViewById(R.id.param_label)).setText(spec.label);
             values[param] = row.findViewById(R.id.param_value);
             sliders[param] = row.findViewById(R.id.param_slider);
-            sliders[param].setMax(CUSTOM_PARAM_STEPS[param]);
-            sliders[param].setProgress(paramProgress(param, initial[param]));
-            values[param].setText(paramText(param, initial[param]));
+            sliders[param].setMax(spec.steps);
+            sliders[param].setProgress(spec.progress(initial[param]));
+            values[param].setText(spec.text(initial[param]));
             sliders[param].setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                 @Override
                 public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                    final float value = paramValue(param, progress);
-                    values[param].setText(paramText(param, value));
+                    final float value = spec.value(progress);
+                    values[param].setText(spec.text(value));
                     if (fromUser) {
                         CustomTheme.setParam(MainActivity.this, param, value, false); // live preview
                     }
@@ -333,36 +373,9 @@ public class MainActivity extends Activity {
             final float[] defaults = CustomTheme.themeParams(Themes.CUSTOM);
             CustomTheme.setParams(this, defaults, false);
             for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
-                sliders[i].setProgress(paramProgress(i, defaults[i]));
+                sliders[i].setProgress(CUSTOM_PARAMS[i].progress(defaults[i]));
             }
         });
-    }
-
-    private static float paramValue(int param, int progress) {
-        final float fraction = progress / (float) CUSTOM_PARAM_STEPS[param];
-        if (param == CustomTheme.ALPHA_DECAY) {
-            // it only really matters close to 1.0, so scale the slider accordingly
-            final double min = Math.log1p(-CUSTOM_PARAM_MIN[param]);
-            final double max = Math.log1p(-CUSTOM_PARAM_MAX[param]);
-            return (float) (1.0 - Math.exp(min + (max - min) * fraction));
-        }
-        return CUSTOM_PARAM_MIN[param] + (CUSTOM_PARAM_MAX[param] - CUSTOM_PARAM_MIN[param]) * fraction;
-    }
-
-    private static int paramProgress(int param, float value) {
-        final double fraction;
-        if (param == CustomTheme.ALPHA_DECAY) {
-            final double min = Math.log1p(-CUSTOM_PARAM_MIN[param]);
-            final double max = Math.log1p(-CUSTOM_PARAM_MAX[param]);
-            fraction = (Math.log1p(-Math.min(value, 0.999999)) - min) / (max - min);
-        } else {
-            fraction = (value - CUSTOM_PARAM_MIN[param]) / (CUSTOM_PARAM_MAX[param] - CUSTOM_PARAM_MIN[param]);
-        }
-        return Math.round((float) (Math.max(0.0, Math.min(fraction, 1.0)) * CUSTOM_PARAM_STEPS[param]));
-    }
-
-    private static String paramText(int param, float value) {
-        return String.format(Locale.getDefault(), "%." + CUSTOM_PARAM_DECIMALS[param] + "f", value);
     }
 
     private void pickCustomColor(int component, String label) {
@@ -379,16 +392,7 @@ public class MainActivity extends Activity {
         final String name = CustomTheme.presetName(this);
         if (!name.isEmpty()) {
             final CustomTheme.Preset preset = CustomTheme.preset(this, name);
-            final int[] colors = CustomTheme.colors(this);
-            final float[] params = CustomTheme.params(this);
-            boolean same = preset != null;
-            for (int i = 0; same && i < CustomTheme.COUNT; i++) {
-                same = preset.colors[i] == colors[i];
-            }
-            for (int i = 0; same && i < CustomTheme.PARAM_COUNT; i++) {
-                same = preset.params[i] == params[i];
-            }
-            if (!same) {
+            if (preset == null || !preset.matches(this)) {
                 CustomTheme.setPresetName(this, "");
             }
         }
@@ -402,8 +406,8 @@ public class MainActivity extends Activity {
         }
         if (customCardImage != null) {
             customCardImage.setImageDrawable(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, new int[]{
-                    0xFF000000 | colors[CustomTheme.BG1],
-                    0xFF000000 | colors[CustomTheme.BG2],
+                    0xFF000000 | colors[CustomTheme.COLOR_BG1],
+                    0xFF000000 | colors[CustomTheme.COLOR_BG2],
             }));
         }
     }
@@ -480,8 +484,7 @@ public class MainActivity extends Activity {
                 .setMessage(getString(R.string.customize_message, theme.name))
                 .setPositiveButton(R.string.customize_continue, (dialog, which) -> {
                     CustomTheme.setPresetName(this, "");
-                    CustomTheme.setParams(this, CustomTheme.themeParams(theme.index), false);
-                    CustomTheme.setColors(this, CustomTheme.themeColors(theme.index), true);
+                    CustomTheme.set(this, CustomTheme.themeColors(theme.index), CustomTheme.themeParams(theme.index), true);
                     selectTheme(Themes.CUSTOM, true);
                 })
                 .setNegativeButton(android.R.string.cancel, null)

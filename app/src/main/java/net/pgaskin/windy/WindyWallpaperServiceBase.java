@@ -67,7 +67,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
 
         // note: this is rate-limited, and also may not take effect until the
         // screen is turned off and on, or the wallpaper is changed
-        private final Runnable customColorListener = this::notifyColorsChanged;
+        private final Runnable customThemeListener = this::notifyColorsChanged;
 
         WindyEngine() {
             setOffsetNotificationsEnabled(true);
@@ -76,8 +76,8 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         @Override
         public WallpaperColors onComputeColors() {
             final int tint = themeIndex() == Themes.CUSTOM
-                    ? CustomTheme.color(WindyWallpaperServiceBase.this, CustomTheme.TINT)
-                    : WindyWallpaperNative.themeColor(themeIndex(), CustomTheme.TINT);
+                    ? CustomTheme.color(WindyWallpaperServiceBase.this, CustomTheme.COLOR_TINT)
+                    : WindyWallpaperNative.themeColor(themeIndex(), CustomTheme.COLOR_TINT);
             final Color c = Color.valueOf(0xFF000000 | (tint & 0xFFFFFF));
             return new WallpaperColors(c, c, c);
         }
@@ -86,14 +86,14 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         public void onCreate(SurfaceHolder holder) {
             super.onCreate(holder);
             if (themeIndex() == Themes.CUSTOM) {
-                CustomTheme.addListener(customColorListener);
+                CustomTheme.addListener(customThemeListener);
             }
         }
 
         @Override
         public void onDestroy() {
             super.onDestroy();
-            CustomTheme.removeListener(customColorListener);
+            CustomTheme.removeListener(customThemeListener);
         }
 
         @Override
