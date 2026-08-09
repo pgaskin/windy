@@ -273,7 +273,7 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetOffs
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetColors(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetCustom(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -281,24 +281,6 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetColo
     fast: jint,
     bg1: jint,
     bg2: jint,
-) {
-    if handle == 0 {
-        return;
-    }
-    let st = unsafe { state(handle) };
-    let mut config = st.renderer.config().clone();
-    config.slow_wind_color = unpack_argb(slow);
-    config.fast_wind_color = unpack_argb(fast);
-    config.bg_color1 = unpack_argb(bg1);
-    config.bg_color2 = unpack_argb(bg2);
-    st.renderer.set_config(&st.device, config);
-}
-
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetParams(
-    _env: EnvUnowned,
-    _class: JClass,
-    handle: jlong,
     line_half_width: jfloat,
     particle_opacity: jfloat,
     alpha_decay: jfloat,
@@ -309,11 +291,15 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetPara
     }
     let st = unsafe { state(handle) };
     let mut config = st.renderer.config().clone();
+    config.slow_wind_color = unpack_argb(slow);
+    config.fast_wind_color = unpack_argb(fast);
+    config.bg_color1 = unpack_argb(bg1);
+    config.bg_color2 = unpack_argb(bg2);
     config.line_half_width = scale_line_half_width(line_half_width as f32, st.dpi_scale);
     config.particle_opacity = particle_opacity as f32;
     config.alpha_decay = alpha_decay as f32;
     config.wind_speed = wind_speed as f32;
-    st.renderer.set_config(&st.device, config); // note: this eases
+    st.renderer.set_config(&st.device, config); // note: the colors are instant, but the params ease
 }
 
 #[unsafe(no_mangle)]

@@ -49,12 +49,9 @@ public final class WindyWallpaperNative implements AutoCloseable {
         nativeSetUserLocation(handle, lng, lat);
     }
 
-    public void setColors(int slow, int fast, int bg1, int bg2) {
-        nativeSetColors(handle, slow, fast, bg1, bg2); // packed 0xAARRGGBB
-    }
-
-    public void setParams(float lineHalfWidth, float particleOpacity, float alphaDecay, float windSpeed) {
-        nativeSetParams(handle, lineHalfWidth, particleOpacity, alphaDecay, windSpeed); // width in dp
+    /** Replaces the colors (packed 0xAARRGGBB) and params (the width is in dp). */
+    public void setCustom(int slow, int fast, int bg1, int bg2, float lineHalfWidth, float particleOpacity, float alphaDecay, float windSpeed) {
+        nativeSetCustom(handle, slow, fast, bg1, bg2, lineHalfWidth, particleOpacity, alphaDecay, windSpeed);
     }
 
     /** The name of the GPU the renderer is using, or null if unknown. */
@@ -90,8 +87,7 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native void nativeRestart(long handle);
     private static native void nativeSetOffset(long handle, float offset);
     private static native void nativeSetUserLocation(long handle, float lng, float lat);
-    private static native void nativeSetColors(long handle, int slow, int fast, int bg1, int bg2);
-    private static native void nativeSetParams(long handle, float lineHalfWidth, float particleOpacity, float alphaDecay, float windSpeed);
+    private static native void nativeSetCustom(long handle, int slow, int fast, int bg1, int bg2, float lineHalfWidth, float particleOpacity, float alphaDecay, float windSpeed);
     private static native void nativeSetWindField(long handle, byte[] rgba, int width, int height);
     private static native String nativeGpuModel(long handle);
     private static native void nativeDestroy(long handle);
