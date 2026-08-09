@@ -15,6 +15,7 @@ The shaders are inspired by the official Pixel windy live wallpaper, but rewritt
 - Better location handling.
 - Lower memory and CPU usage.
 - Optionally render static frames to effectively eliminate all resource usage.
+- Support for custom themes.
 - Other fixes.
 
 [**`Download`**](https://github.com/pgaskin/windy/releases/latest)
@@ -40,6 +41,7 @@ The shaders are inspired by the official Pixel windy live wallpaper, but rewritt
 <td><img src="metadata/en-US/images/phoneScreenshots/2.png"></td>
 <td><img src="metadata/en-US/images/phoneScreenshots/3.png"></td>
 <td><img src="metadata/en-US/images/phoneScreenshots/4.png"></td>
+<td><img src="metadata/en-US/images/phoneScreenshots/5.png"></td>
 </tr></tbody></table>
 
 #### Creating themes
