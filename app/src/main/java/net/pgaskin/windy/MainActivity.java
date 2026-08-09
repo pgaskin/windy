@@ -26,6 +26,8 @@ import android.widget.Toast;
 public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
 
+    private static final int REQUEST_SET_WALLPAPER = 1;
+
     private WindyWallpaperView preview;
     private HorizontalScrollView themeScroll;
     private LinearLayout themeList;
@@ -150,15 +152,24 @@ public class MainActivity extends Activity {
         final Intent intent = new Intent(WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER);
         intent.putExtra(WallpaperManager.EXTRA_LIVE_WALLPAPER_COMPONENT, new ComponentName(this, theme.service));
         try {
-            startActivity(intent);
+            startActivityForResult(intent, REQUEST_SET_WALLPAPER);
         } catch (ActivityNotFoundException ex) {
             Log.w(TAG, "no live wallpaper preview activity, opening the chooser: " + ex);
             try {
-                startActivity(new Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER));
+                startActivityForResult(new Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER), REQUEST_SET_WALLPAPER);
             } catch (ActivityNotFoundException ex1) {
                 Log.e(TAG, "no live wallpaper chooser either: " + ex1);
                 Toast.makeText(this, R.string.set_wallpaper_failed, Toast.LENGTH_LONG).show();
             }
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_SET_WALLPAPER && resultCode == RESULT_OK) {
+            Log.i(TAG, "wallpaper was set, closing");
+            finish();
         }
     }
 }
