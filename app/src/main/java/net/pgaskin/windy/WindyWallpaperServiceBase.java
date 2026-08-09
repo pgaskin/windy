@@ -45,6 +45,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
     @Override
     public void onCreate() {
         super.onCreate();
+        WindFieldConsentActivity.request(this);
         WindFieldUpdateService.scheduleStartup(this);
         WindFieldUpdateService.schedulePeriodic(this);
         LocationUpdateService.schedule(this);

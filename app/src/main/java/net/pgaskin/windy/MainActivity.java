@@ -64,6 +64,13 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         preview.setPaused(false);
+        // ask about the wind data first, then about the location (like the
+        // wallpaper does when it's started from the picker)
+        if (Prefs.dataConsentPending(this)) {
+            WindFieldConsentActivity.request(this);
+        } else {
+            LocationActivity.updateLocation(this, true);
+        }
     }
 
     @Override

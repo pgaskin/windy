@@ -4,13 +4,17 @@ package net.pgaskin.windy;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.util.Log;
 
 public final class Prefs {
+    private static final String TAG = "Prefs";
+
     public static final String STORE = "settings";
 
     public static final String KEY_LOCATION_INTERVAL = "location_interval";
     public static final String KEY_DATA_INTERVAL = "data_interval";
     public static final String KEY_DATA_URL = "data_url";
+    public static final String KEY_DATA_CONSENT = "data_consent";
     public static final String KEY_THEME = "theme";
 
     public static final long INTERVAL_NEVER = 0;
@@ -40,9 +44,38 @@ public final class Prefs {
         return interval(context, KEY_DATA_INTERVAL, DEFAULT_DATA_INTERVAL);
     }
 
+    public static void setDataInterval(Context context, long seconds) {
+        get(context).edit().putString(KEY_DATA_INTERVAL, String.valueOf(seconds)).apply();
+    }
+
     public static String dataUrl(Context context) {
         final String url = get(context).getString(KEY_DATA_URL, null);
         return url == null || url.trim().isEmpty() ? BuildConfig.WIND_FIELD_API_URL : url.trim();
+    }
+
+    /**
+     * Whether {@link WindFieldConsentActivity} still needs to ask about wind
+     * data updates. Nothing is updated automatically until it has.
+     */
+    public static boolean dataConsentPending(Context context) {
+        migrateDataConsent(context);
+        return !get(context).contains(KEY_DATA_CONSENT);
+    }
+
+    public static void setDataConsent(Context context, boolean consent) {
+        get(context).edit().putBoolean(KEY_DATA_CONSENT, consent).apply();
+    }
+
+    /** Installations from before the consent dialog existed imply consent. */
+    private static void migrateDataConsent(Context context) {
+        final SharedPreferences prefs = get(context);
+        if (prefs.contains(KEY_DATA_CONSENT)) {
+            return;
+        }
+        if (WindFieldUpdateService.hasHistory(context) || LocationActivity.hasHistory(context)) {
+            Log.i(TAG, "keeping wind data updates enabled for an existing installation");
+            prefs.edit().putBoolean(KEY_DATA_CONSENT, true).apply();
+        }
     }
 
     public static int themeIndex(Context context) {

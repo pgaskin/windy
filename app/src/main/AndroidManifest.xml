@@ -59,6 +59,10 @@
             android:name="net.pgaskin.windy.LocationActivity"
             android:theme="@style/Theme.Transparent" />
 
+        <activity
+            android:name="net.pgaskin.windy.WindFieldConsentActivity"
+            android:theme="@style/Theme.Transparent" />
+
         <service
             android:name="net.pgaskin.windy.WindFieldUpdateService"
             android:permission="android.permission.BIND_JOB_SERVICE" />

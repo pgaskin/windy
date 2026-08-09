@@ -211,6 +211,8 @@ public class SettingsActivity extends Activity {
                     LocationUpdateService.schedule(context);
                     break;
                 case Prefs.KEY_DATA_INTERVAL:
+                    // picking an interval here answers the consent dialog too
+                    Prefs.setDataConsent(context, Prefs.dataInterval(context) != Prefs.INTERVAL_NEVER);
                     WindFieldUpdateService.schedulePeriodic(context);
                     WindFieldUpdateService.scheduleStartup(context);
                     WindField.invalidate();

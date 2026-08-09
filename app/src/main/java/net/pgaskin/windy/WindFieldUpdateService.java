@@ -116,6 +116,11 @@ public class WindFieldUpdateService extends JobService {
         return getPreferences(context).getLong("last_updated", 0);
     }
 
+    /** Whether the data has ever been fetched, i.e. this isn't a fresh installation. */
+    static boolean hasHistory(Context context) {
+        return !getPreferences(context).getAll().isEmpty();
+    }
+
     public static String lastSource(Context context) {
         return getPreferences(context).getString("source", null);
     }
@@ -145,6 +150,10 @@ public class WindFieldUpdateService extends JobService {
     }
 
     public static boolean scheduleStartup(Context context) {
+        if (Prefs.dataConsentPending(context)) {
+            Log.i(TAG, "not scheduling initial update without consent");
+            return false;
+        }
         if (Prefs.dataInterval(context) <= 0) {
             Log.i(TAG, "automatic wind field updates are disabled, not scheduling initial update");
             return false;
@@ -159,7 +168,7 @@ public class WindFieldUpdateService extends JobService {
     }
 
     public static boolean schedulePeriodic(Context context) {
-        if (Prefs.dataInterval(context) <= 0) {
+        if (Prefs.dataConsentPending(context) || Prefs.dataInterval(context) <= 0) {
             Log.i(TAG, "automatic wind field updates are disabled, canceling periodic update job");
             context.getSystemService(JobScheduler.class).cancel(JOB_ID_PERIODIC);
             return false;

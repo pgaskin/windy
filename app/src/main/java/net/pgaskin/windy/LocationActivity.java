@@ -88,50 +88,44 @@ public class LocationActivity extends Activity {
             Log.i(TAG, "saving location since we have access");
             LocationActivity.updateLocation(this, false, true);
         }
+        // the dialogs are always shown first so the permission is never
+        // requested without explaining what it's for
         if (!this.doneForeground && this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (!this.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION)) {
-                Log.i(TAG, "requesting foreground location");
-                this.requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 0);
-            } else {
-                Log.i(TAG, "showing dialog about foreground location");
-                new AlertDialog.Builder(this)
-                    .setTitle("Windy Live Wallpaper")
-                    .setMessage("Location is required to update wind map position.")
-                    .setPositiveButton("Accept", (dialog, which) -> {
-                        Log.i(TAG, "requesting foreground location");
-                        this.requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 0);
-                    })
-                    .setNegativeButton("Decline", (dialog, which) -> {
-                        Log.w(TAG, "foreground location declined");
-                        this.doneForeground = true;
-                        LocationActivity.markLocationFlowComplete(this);
-                        this.finish();
-                    })
-                    .create().show();
-            }
+            Log.i(TAG, "showing dialog about foreground location");
+            new AlertDialog.Builder(this)
+                .setTitle(R.string.app_name)
+                .setMessage(R.string.location_consent_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.accept, (dialog, which) -> {
+                    Log.i(TAG, "requesting foreground location");
+                    this.requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 0);
+                })
+                .setNegativeButton(R.string.decline, (dialog, which) -> {
+                    Log.w(TAG, "foreground location declined");
+                    this.doneForeground = true;
+                    LocationActivity.markLocationFlowComplete(this);
+                    this.finish();
+                })
+                .create().show();
             return;
         }
         if (!this.doneBackground && this.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (!this.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-                Log.i(TAG, "requesting background location");
-                this.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 0);
-            } else {
-                Log.i(TAG, "showing dialog about background location");
-                new AlertDialog.Builder(this)
-                    .setTitle("Windy Live Wallpaper")
-                    .setMessage("Background location is required for future wind map position updates.")
-                    .setPositiveButton("Accept", (dialog, which) -> {
-                        Log.i(TAG, "requesting background location");
-                        this.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 0);
-                    })
-                    .setNegativeButton("Decline", (dialog, which) -> {
-                        Log.w(TAG, "background location declined");
-                        this.doneBackground = true;
-                        LocationActivity.markLocationFlowComplete(this);
-                        this.finish();
-                    })
-                    .create().show();
-            }
+            Log.i(TAG, "showing dialog about background location");
+            new AlertDialog.Builder(this)
+                .setTitle(R.string.app_name)
+                .setMessage(R.string.location_consent_background_message)
+                .setCancelable(false)
+                .setPositiveButton(R.string.accept, (dialog, which) -> {
+                    Log.i(TAG, "requesting background location");
+                    this.requestPermissions(new String[]{Manifest.permission.ACCESS_BACKGROUND_LOCATION}, 0);
+                })
+                .setNegativeButton(R.string.decline, (dialog, which) -> {
+                    Log.w(TAG, "background location declined");
+                    this.doneBackground = true;
+                    LocationActivity.markLocationFlowComplete(this);
+                    this.finish();
+                })
+                .create().show();
             return;
         }
         LocationActivity.markLocationFlowComplete(this);
@@ -188,6 +182,11 @@ public class LocationActivity extends Activity {
     /** Returns the time the stored location was last updated, or 0 if never. */
     public static long lastUpdated(Context context) {
         return LocationActivity.getPreferences(context).getLong("last_updated", 0);
+    }
+
+    /** Whether the location has ever been used, i.e. this isn't a fresh installation. */
+    static boolean hasHistory(Context context) {
+        return !LocationActivity.getPreferences(context).getAll().isEmpty();
     }
 
     /** Updates the saved location. */
