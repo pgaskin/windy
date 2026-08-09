@@ -34,6 +34,23 @@ public final class CustomTheme {
         return component == SLOW || component == FAST; // alpha doesn't affect other colors
     }
 
+    // do not change the order (it must match native)
+    public static final int LINE_HALF_WIDTH = 0;
+    public static final int PARTICLE_OPACITY = 1;
+    public static final int ALPHA_DECAY = 2;
+    public static final int WIND_SPEED = 3;
+    public static final int PARAM_COUNT = 4;
+
+    /**
+     * Param names, used for the saved keys.
+     */
+    private static final String[] PARAM_NAMES = {
+            "line_half_width",
+            "particle_opacity",
+            "alpha_decay",
+            "wind_speed",
+    };
+
     private static final int MAX_PRESETS = 32;
     private static final int MAX_NAME_LENGTH = 40;
 
@@ -41,6 +58,7 @@ public final class CustomTheme {
     private static final Set<Runnable> listeners = ConcurrentHashMap.newKeySet();
 
     private static volatile int[] colors; // array values immutable once set
+    private static volatile float[] params;
 
     private CustomTheme() {
     }
@@ -75,9 +93,35 @@ public final class CustomTheme {
         return result;
     }
 
+    public static float[] params(Context context) {
+        float[] current = params;
+        if (current == null) {
+            synchronized (CustomTheme.class) {
+                current = params;
+                if (current == null) {
+                    current = loadParams(Prefs.get(context));
+                    params = current;
+                }
+            }
+        }
+        return current.clone();
+    }
+
+    public static float param(Context context, int param) {
+        return params(context)[param];
+    }
+
+    public static float[] themeParams(int themeIndex) {
+        final float[] result = new float[PARAM_COUNT];
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            result[i] = WindyWallpaperNative.themeParam(themeIndex, i);
+        }
+        return result;
+    }
+
     /**
      * Updates the colors, applying them to the active renderers.
-     *
+     * <p>
      * When persist is false, the change is only kept in memory (for live
      * updates while a color is being picked), call {@link #persist} to save it.
      */
@@ -101,10 +145,46 @@ public final class CustomTheme {
         setColors(context, next, persist);
     }
 
-    /** Saves the current colors. */
+    public static void setParams(Context context, float[] next, boolean persist) {
+        if (next.length != PARAM_COUNT) {
+            throw new IllegalArgumentException("expected " + PARAM_COUNT + " params");
+        }
+        params = next.clone();
+        if (persist) {
+            persist(context);
+        }
+        notifyChanged();
+    }
+
+    public static void setParam(Context context, int param, float value, boolean persist) {
+        final float[] next = params(context);
+        if (next[param] == value) {
+            return;
+        }
+        next[param] = value;
+        setParams(context, next, persist);
+    }
+
     public static void persist(Context context) {
-        final int[] current = colors(context);
-        Prefs.get(context).edit().putString(Prefs.KEY_CUSTOM_COLORS, formatColors(current)).apply();
+        final SharedPreferences.Editor edit = Prefs.get(context).edit();
+        edit.putString(Prefs.KEY_CUSTOM_COLORS, formatColors(colors(context)));
+        final float[] current = params(context);
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            edit.putFloat(paramKey(i), current[i]);
+        }
+        edit.apply();
+    }
+
+    private static String paramKey(int param) {
+        return Prefs.KEY_CUSTOM_PARAM_PREFIX + PARAM_NAMES[param];
+    }
+
+    private static float[] loadParams(SharedPreferences prefs) {
+        final float[] result = themeParams(Themes.CUSTOM);
+        for (int i = 0; i < PARAM_COUNT; i++) {
+            result[i] = prefs.getFloat(paramKey(i), result[i]);
+        }
+        return result;
     }
 
     public static void addListener(Runnable listener) {
@@ -130,10 +210,12 @@ public final class CustomTheme {
     public static final class Preset {
         public final String name;
         public final int[] colors;
+        public final float[] params;
 
-        Preset(String name, int[] colors) {
+        Preset(String name, int[] colors, float[] params) {
             this.name = name;
             this.colors = colors;
+            this.params = params;
         }
     }
 
@@ -149,7 +231,12 @@ public final class CustomTheme {
                 final JSONObject obj = arr.getJSONObject(i);
                 final String name = obj.optString("name", "").trim();
                 if (!name.isEmpty()) {
-                    presets.add(new Preset(name, parseColors(obj.optString("colors", null))));
+                    // presets saved before the params existed use the defaults
+                    final float[] params = themeParams(Themes.CUSTOM);
+                    for (int p = 0; p < PARAM_COUNT; p++) {
+                        params[p] = (float) obj.optDouble(PARAM_NAMES[p], params[p]);
+                    }
+                    presets.add(new Preset(name, parseColors(obj.optString("colors", null)), params));
                 }
             }
         } catch (JSONException ex) {
@@ -172,12 +259,12 @@ public final class CustomTheme {
         if (name.isEmpty()) {
             return;
         }
-        final int[] current = colors(context);
+        final Preset current = new Preset(name, colors(context), params(context));
         final List<Preset> presets = presets(context);
         boolean replaced = false;
         for (int i = 0; i < presets.size(); i++) {
             if (presets.get(i).name.equals(name)) {
-                presets.set(i, new Preset(name, current));
+                presets.set(i, current);
                 replaced = true;
                 break;
             }
@@ -186,7 +273,7 @@ public final class CustomTheme {
             while (presets.size() >= MAX_PRESETS) {
                 presets.remove(0);
             }
-            presets.add(new Preset(name, current));
+            presets.add(current);
         }
         writePresets(context, presets, name);
     }
@@ -212,7 +299,8 @@ public final class CustomTheme {
             return;
         }
         Prefs.get(context).edit().putString(Prefs.KEY_CUSTOM_PRESET, preset.name).apply();
-        setColors(context, preset.colors, true);
+        params = preset.params.clone();
+        setColors(context, preset.colors, true); // persists and notifies both
     }
 
     public static String presetName(Context context) {
@@ -235,6 +323,9 @@ public final class CustomTheme {
                 final JSONObject obj = new JSONObject();
                 obj.put("name", preset.name);
                 obj.put("colors", formatColors(preset.colors));
+                for (int p = 0; p < PARAM_COUNT; p++) {
+                    obj.put(PARAM_NAMES[p], (double) preset.params[p]);
+                }
                 arr.put(obj);
             }
         } catch (JSONException ex) {

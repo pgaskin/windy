@@ -8,6 +8,7 @@ import android.app.WallpaperInfo;
 import android.app.WallpaperManager;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.Insets;
@@ -17,8 +18,10 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -26,6 +29,7 @@ import android.widget.EditText;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toolbar;
@@ -33,6 +37,7 @@ import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final String TAG = "MainActivity";
@@ -46,6 +51,17 @@ public class MainActivity extends Activity {
             R.string.custom_color_bg2,
             R.string.custom_color_tint,
     };
+
+    private static final int[] CUSTOM_PARAM_LABELS = {
+            R.string.param_line_width,
+            R.string.param_opacity,
+            R.string.param_trail_decay,
+            R.string.param_wind_speed,
+    };
+    private static final float[] CUSTOM_PARAM_MIN = {0.25f, 0.0f, 0.95f, 0.0f};
+    private static final float[] CUSTOM_PARAM_MAX = {4.0f, 2.0f, 0.9999f, 0.5f};
+    private static final int[] CUSTOM_PARAM_STEPS = {75, 100, 500, 100};
+    private static final int[] CUSTOM_PARAM_DECIMALS = {2, 2, 4, 3};
 
     private WindyWallpaperView preview;
     private HorizontalScrollView themeScroll;
@@ -222,6 +238,10 @@ public class MainActivity extends Activity {
             swatchList.addView(item);
         }
 
+        final View advanced = inflater.inflate(R.layout.custom_advanced, swatchList, false);
+        advanced.setOnClickListener(v -> showAdvancedDialog());
+        swatchList.addView(advanced);
+
         presetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -245,6 +265,106 @@ public class MainActivity extends Activity {
         presetDelete.setOnClickListener(v -> showDeletePresetDialog());
     }
 
+    private void showAdvancedDialog() {
+        final float[] initial = CustomTheme.params(this);
+        final SeekBar[] sliders = new SeekBar[CustomTheme.PARAM_COUNT];
+        final TextView[] values = new TextView[CustomTheme.PARAM_COUNT];
+
+        final LayoutInflater inflater = getLayoutInflater();
+        final LinearLayout container = new LinearLayout(this);
+        container.setOrientation(LinearLayout.VERTICAL);
+        final int padding = Math.round(20 * getResources().getDisplayMetrics().density);
+        container.setPadding(padding, padding / 2, padding, 0);
+
+        for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
+            final int param = i;
+            final View row = inflater.inflate(R.layout.custom_param, container, false);
+            ((TextView) row.findViewById(R.id.param_label)).setText(CUSTOM_PARAM_LABELS[param]);
+            values[param] = row.findViewById(R.id.param_value);
+            sliders[param] = row.findViewById(R.id.param_slider);
+            sliders[param].setMax(CUSTOM_PARAM_STEPS[param]);
+            sliders[param].setProgress(paramProgress(param, initial[param]));
+            values[param].setText(paramText(param, initial[param]));
+            sliders[param].setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    final float value = paramValue(param, progress);
+                    values[param].setText(paramText(param, value));
+                    if (fromUser) {
+                        CustomTheme.setParam(MainActivity.this, param, value, false); // live preview
+                    }
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+                }
+            });
+            container.addView(row);
+        }
+
+        final boolean[] accepted = {false};
+        final AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle(R.string.advanced)
+                .setView(container)
+                .setPositiveButton(android.R.string.ok, (d, which) -> {
+                    accepted[0] = true;
+                    CustomTheme.persist(this);
+                    updatePresetSelection();
+                })
+                .setNeutralButton(R.string.reset, null) // set below so it doesn't dismiss it
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener(d -> {
+                    if (!accepted[0]) {
+                        CustomTheme.setParams(this, initial, false); // undo the live preview
+                    }
+                })
+                .create();
+
+        final Window window = dialog.getWindow();
+        if (window != null) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); // don't dim the wallpaper being previewed
+        }
+        dialog.show();
+        dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            final float[] defaults = CustomTheme.themeParams(Themes.CUSTOM);
+            CustomTheme.setParams(this, defaults, false);
+            for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
+                sliders[i].setProgress(paramProgress(i, defaults[i]));
+            }
+        });
+    }
+
+    private static float paramValue(int param, int progress) {
+        final float fraction = progress / (float) CUSTOM_PARAM_STEPS[param];
+        if (param == CustomTheme.ALPHA_DECAY) {
+            // it only really matters close to 1.0, so scale the slider accordingly
+            final double min = Math.log1p(-CUSTOM_PARAM_MIN[param]);
+            final double max = Math.log1p(-CUSTOM_PARAM_MAX[param]);
+            return (float) (1.0 - Math.exp(min + (max - min) * fraction));
+        }
+        return CUSTOM_PARAM_MIN[param] + (CUSTOM_PARAM_MAX[param] - CUSTOM_PARAM_MIN[param]) * fraction;
+    }
+
+    private static int paramProgress(int param, float value) {
+        final double fraction;
+        if (param == CustomTheme.ALPHA_DECAY) {
+            final double min = Math.log1p(-CUSTOM_PARAM_MIN[param]);
+            final double max = Math.log1p(-CUSTOM_PARAM_MAX[param]);
+            fraction = (Math.log1p(-Math.min(value, 0.999999)) - min) / (max - min);
+        } else {
+            fraction = (value - CUSTOM_PARAM_MIN[param]) / (CUSTOM_PARAM_MAX[param] - CUSTOM_PARAM_MIN[param]);
+        }
+        return Math.round((float) (Math.max(0.0, Math.min(fraction, 1.0)) * CUSTOM_PARAM_STEPS[param]));
+    }
+
+    private static String paramText(int param, float value) {
+        return String.format(Locale.getDefault(), "%." + CUSTOM_PARAM_DECIMALS[param] + "f", value);
+    }
+
     private void pickCustomColor(int component, String label) {
         final int initial = CustomTheme.color(this, component);
         ColorPickerDialog.show(this, label, initial, CustomTheme.hasAlpha(component),
@@ -260,9 +380,13 @@ public class MainActivity extends Activity {
         if (!name.isEmpty()) {
             final CustomTheme.Preset preset = CustomTheme.preset(this, name);
             final int[] colors = CustomTheme.colors(this);
+            final float[] params = CustomTheme.params(this);
             boolean same = preset != null;
             for (int i = 0; same && i < CustomTheme.COUNT; i++) {
                 same = preset.colors[i] == colors[i];
+            }
+            for (int i = 0; same && i < CustomTheme.PARAM_COUNT; i++) {
+                same = preset.params[i] == params[i];
             }
             if (!same) {
                 CustomTheme.setPresetName(this, "");
@@ -356,6 +480,7 @@ public class MainActivity extends Activity {
                 .setMessage(getString(R.string.customize_message, theme.name))
                 .setPositiveButton(R.string.customize_continue, (dialog, which) -> {
                     CustomTheme.setPresetName(this, "");
+                    CustomTheme.setParams(this, CustomTheme.themeParams(theme.index), false);
                     CustomTheme.setColors(this, CustomTheme.themeColors(theme.index), true);
                     selectTheme(Themes.CUSTOM, true);
                 })

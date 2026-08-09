@@ -22,6 +22,11 @@
     <string name="custom_color_bg1">Background 1</string>
     <string name="custom_color_bg2">Background 2</string>
     <string name="custom_color_tint">System tint</string>
+    <string name="advanced">Advanced</string>
+    <string name="param_line_width">Line width</string>
+    <string name="param_opacity">Line opacity</string>
+    <string name="param_trail_decay">Trail decay</string>
+    <string name="param_wind_speed">Wind speed</string>
     <string name="presets">Presets</string>
     <string name="preset_unsaved">Unsaved colors</string>
     <string name="preset_none">No presets</string>

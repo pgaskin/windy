@@ -20,6 +20,7 @@ struct State {
     device: wgpu::Device,
     queue: wgpu::Queue,
     renderer: Renderer,
+    dpi_scale: f32,
     gpu_model: String,
     last_frame: Instant,
     _instance: wgpu::Instance, // MUST be last so it outlives everything else
@@ -100,7 +101,7 @@ impl State {
         let theme = Theme::ALL.get(theme_index).copied().unwrap_or(Theme::BLUE);
         let mut config = Config::with_theme(&theme);
 
-        config.line_half_width = (config.line_half_width * dpi_scale).max(1.0);
+        config.line_half_width = scale_line_half_width(config.line_half_width, dpi_scale);
 
         let renderer = Renderer::new(&device, &queue, format, config, width, height);
         Ok(State {
@@ -110,6 +111,7 @@ impl State {
             device,
             queue,
             renderer,
+            dpi_scale,
             gpu_model: adapter_info.name,
             last_frame: Instant::now(),
             _instance: instance,
@@ -280,6 +282,28 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetColo
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetParams(
+    _env: EnvUnowned,
+    _class: JClass,
+    handle: jlong,
+    line_half_width: jfloat,
+    particle_opacity: jfloat,
+    alpha_decay: jfloat,
+    wind_speed: jfloat,
+) {
+    if handle == 0 {
+        return;
+    }
+    let st = unsafe { state(handle) };
+    let mut config = st.renderer.config().clone();
+    config.line_half_width = scale_line_half_width(line_half_width as f32, st.dpi_scale);
+    config.particle_opacity = particle_opacity as f32;
+    config.alpha_decay = alpha_decay as f32;
+    config.wind_speed = wind_speed as f32;
+    st.renderer.set_config(&st.device, config); // note: this eases
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetUserLocation(
     _env: EnvUnowned,
     _class: JClass,
@@ -381,6 +405,37 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeCo
         }
     };
     pack_argb(rgba)
+}
+
+// must match java
+const PARAM_LINE_HALF_WIDTH: jint = 0;
+const PARAM_PARTICLE_OPACITY: jint = 1;
+const PARAM_ALPHA_DECAY: jint = 2;
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeParam(
+    _env: EnvUnowned,
+    _class: JClass,
+    theme_index: jint,
+    param: jint,
+) -> jfloat {
+    let theme = Theme::ALL
+        .get(theme_index.max(0) as usize)
+        .copied()
+        .unwrap_or(Theme::BLUE);
+    let config = Config::with_theme(&theme);
+    let value = match param {
+        PARAM_LINE_HALF_WIDTH => config.line_half_width, // dp, scaled when applied
+        PARAM_PARTICLE_OPACITY => config.particle_opacity,
+        PARAM_ALPHA_DECAY => config.alpha_decay,
+        _ => config.wind_speed,
+    }; // 3 is the wind speed
+    value as jfloat
+}
+
+// keep it density-independent for custom themes too
+fn scale_line_half_width(value: f32, dpi_scale: f32) -> f32 {
+    (value * dpi_scale).max(1.0)
 }
 
 /// `[r, g, b, a]` from `[0,1]` to packed `0xAARRGGBB`.

@@ -48,6 +48,10 @@ public final class WindyWallpaperNative implements AutoCloseable {
         nativeSetColors(handle, slow, fast, bg1, bg2); // packed 0xAARRGGBB
     }
 
+    public void setParams(float lineHalfWidth, float particleOpacity, float alphaDecay, float windSpeed) {
+        nativeSetParams(handle, lineHalfWidth, particleOpacity, alphaDecay, windSpeed); // width in dp
+    }
+
     /** The name of the GPU the renderer is using, or null if unknown. */
     public String gpuModel() {
         return nativeGpuModel(handle);
@@ -70,6 +74,10 @@ public final class WindyWallpaperNative implements AutoCloseable {
         return nativeThemeColor(themeIndex, component); // packed 0xAARRGGBB
     }
 
+    public static float themeParam(int themeIndex, int param) {
+        return nativeThemeParam(themeIndex, param);
+    }
+
     private static native long nativeCreate(Surface surface, int themeIndex, float dpiScale);
     private static native void nativeResize(long handle, int width, int height);
     private static native void nativeRender(long handle);
@@ -77,8 +85,10 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native void nativeSetOffset(long handle, float offset);
     private static native void nativeSetUserLocation(long handle, float lng, float lat);
     private static native void nativeSetColors(long handle, int slow, int fast, int bg1, int bg2);
+    private static native void nativeSetParams(long handle, float lineHalfWidth, float particleOpacity, float alphaDecay, float windSpeed);
     private static native void nativeSetWindField(long handle, byte[] rgba, int width, int height);
     private static native String nativeGpuModel(long handle);
     private static native void nativeDestroy(long handle);
     private static native int nativeThemeColor(int themeIndex, int component);
+    private static native float nativeThemeParam(int themeIndex, int param);
 }

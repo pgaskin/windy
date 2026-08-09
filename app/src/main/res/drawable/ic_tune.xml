@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-FileCopyrightText: Google
+    SPDX-License-Identifier: Apache-2.0
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:tint="?android:attr/textColorPrimary"
+    android:viewportWidth="960"
+    android:viewportHeight="960">
+    <group android:translateY="960">
+        <path
+            android:fillColor="#FF000000"
+            android:pathData="M440,-120v-240h80v80h320v80H520v80h-80ZM120,-200v-80h240v80H120ZM280,-360v-80H120v-80h160v-80h80v240h-80ZM440,-440v-80h400v80H440ZM600,-600v-240h80v80h160v80H680v80h-80ZM120,-680v-80h400v80H120Z" />
+        <!-- Material Symbols Outlined (tune FILL:0 wght:400 GRAD:0 opsz:24) -->
+    </group>
+</vector>

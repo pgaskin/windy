@@ -43,7 +43,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
     private int rendererTheme = -1;
     private int windFieldSeq = -1;
     private int locationSeq = -1;
-    private int customColorSeq = -1;
+    private int customSeq = -1;
 
     private volatile boolean staticMode;
     private volatile boolean settingsDirty;
@@ -181,7 +181,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
                     }
                 }
 
-                applyCustomColors(renderer, theme, fresh);
+                applyCustomTheme(renderer, theme, fresh);
 
                 // Only refresh the location when the wind texture changes,
                 // since refreshing saves it, which bumps seq and would make a
@@ -245,7 +245,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
                 || themeIndex != rendererTheme
                 || windFieldSeq != WindField.currentSeq()
                 || locationSeq != LocationConsentActivity.currentSeq()
-                || (themeIndex == Themes.CUSTOM && customColorSeq != CustomTheme.currentSeq());
+                || (themeIndex == Themes.CUSTOM && customSeq != CustomTheme.currentSeq());
     }
 
     /** Sleeps until the static-mode frame needs to be updated. */
@@ -259,17 +259,19 @@ public abstract class WindyWallpaperRenderer extends Thread {
         }
     }
 
-    private void applyCustomColors(WindyWallpaperNative renderer, int theme, boolean fresh) {
+    private void applyCustomTheme(WindyWallpaperNative renderer, int theme, boolean fresh) {
         if (theme != Themes.CUSTOM) {
             return;
         }
         final int seq = CustomTheme.currentSeq();
-        if (!fresh && seq == customColorSeq) {
+        if (!fresh && seq == customSeq) {
             return;
         }
         final int[] colors = CustomTheme.colors(context);
         renderer.setColors(colors[CustomTheme.SLOW], colors[CustomTheme.FAST], colors[CustomTheme.BG1], colors[CustomTheme.BG2]);
-        customColorSeq = seq;
+        final float[] params = CustomTheme.params(context);
+        renderer.setParams(params[CustomTheme.LINE_HALF_WIDTH], params[CustomTheme.PARTICLE_OPACITY], params[CustomTheme.ALPHA_DECAY], params[CustomTheme.WIND_SPEED]);
+        customSeq = seq;
     }
 
     private void applyWindField(WindyWallpaperNative renderer) {
