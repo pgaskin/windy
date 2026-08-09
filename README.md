@@ -14,6 +14,7 @@ The shaders are inspired by the official Pixel windy live wallpaper, but rewritt
 - Updated wind data (the official data was last updated in 2019).
 - Better location handling.
 - Lower memory and CPU usage.
+- Optionally render static frames to effectively eliminate all resource usage.
 - Other fixes.
 
 [**`Download`**](https://github.com/pgaskin/windy/releases/latest)

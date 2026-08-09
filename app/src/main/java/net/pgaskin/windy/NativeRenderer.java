@@ -32,6 +32,10 @@ public final class NativeRenderer implements AutoCloseable {
         nativeRender(handle);
     }
 
+    public void skip(int frames) {
+        nativeSkip(handle, frames);
+    }
+
     public void setOffset(float offset) {
         nativeSetOffset(handle, offset);
     }
@@ -60,6 +64,7 @@ public final class NativeRenderer implements AutoCloseable {
     private static native long nativeCreate(Surface surface, int themeIndex, float dpiScale);
     private static native void nativeResize(long handle, int width, int height);
     private static native void nativeRender(long handle);
+    private static native void nativeSkip(long handle, int frames);
     private static native void nativeSetOffset(long handle, float offset);
     private static native void nativeSetUserLocation(long handle, float lng, float lat);
     private static native void nativeSetWindField(long handle, byte[] rgba, int width, int height);

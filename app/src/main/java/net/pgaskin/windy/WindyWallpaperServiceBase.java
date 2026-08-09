@@ -14,6 +14,8 @@ import android.service.wallpaper.WallpaperService;
 import android.util.Log;
 import android.view.SurfaceHolder;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -29,6 +31,16 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
     private static final int FPS_HIGH = 60; // parallax
     private static final int FPS_NORMAL = 13;
     private static final int FPS_POWERSAVE = 3;
+
+    private static final int STATIC_FRAMES = 300;
+
+    private static final Set<RenderThread> renderThreads = ConcurrentHashMap.newKeySet();
+
+    static void wakeRenderThreads() {
+        for (final RenderThread thread : renderThreads) {
+            thread.wake();
+        }
+    }
 
     protected abstract int themeIndex();
 
@@ -133,9 +145,22 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         private int windFieldSeq = -1;
         private int locationSeq = -1;
 
+        private volatile boolean staticMode;
+        private volatile boolean settingsDirty;
+        private boolean stillDrawn;
+
+        private final SharedPreferences.OnSharedPreferenceChangeListener settingsListener = (prefs, key) -> {
+            settingsDirty = true;
+            wake();
+        };
+
         RenderThread(SurfaceHolder holder) {
             super("WindyRender");
             this.holder = holder;
+        }
+
+        synchronized void wake() {
+            notifyAll();
         }
 
         synchronized void onResized(int width, int height) {
@@ -151,6 +176,9 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         }
 
         synchronized void onOffsetChanged(float xOffset, float xOffsetStep) {
+            if (staticMode) {
+                return;
+            }
             // like the original
             final int steps = (int) (1.0f / xOffsetStep);
             final float stretch = Math.min(steps / (float) MIN_PAGES_TO_SWIPE, 1.0f);
@@ -175,12 +203,9 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
             final float dpiScale = getResources().getDisplayMetrics().density;
             final SharedPreferences prefs = Prefs.get(WindyWallpaperServiceBase.this);
             NativeRenderer renderer = null;
+            renderThreads.add(this);
+            prefs.registerOnSharedPreferenceChangeListener(settingsListener);
             try {
-                renderer = new NativeRenderer(holder.getSurface(), themeIndex(), dpiScale);
-
-                applyWindField(renderer);
-                applyLocation(renderer, true);
-
                 while (running) {
                     synchronized (this) {
                         while (running && !visible) {
@@ -192,41 +217,125 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
                         if (!running) {
                             break;
                         }
-                        if (resized) {
-                            renderer.resize(pendingWidth, pendingHeight);
-                            resized = false;
-                        }
+                        settingsDirty = false; // cleared before reading, so a concurrent change isn't lost
                     }
 
-                    final long frameStart = System.nanoTime();
+                    if (staticMode != Prefs.staticMode(prefs)) {
+                        staticMode = !staticMode;
+                        stillDrawn = false;
+                    }
 
-                    applyLocation(renderer, pollWindField(renderer));
-
-                    boolean easing = false;
-                    synchronized (this) {
-                        if (offsetDirty || Math.abs(targetOffset - easedOffset) > 0.001f) {
-                            if (isPowerSaveMode.get()) {
-                                easedOffset = targetOffset;
-                            } else {
-                                easedOffset += (targetOffset - easedOffset) * 0.18f;
-                                easing = Math.abs(targetOffset - easedOffset) > 0.001f;
+                    if (staticMode) {
+                        if (stillStale()) {
+                            final long start = System.nanoTime();
+                            if (renderer == null) {
+                                renderer = new NativeRenderer(holder.getSurface(), themeIndex(), dpiScale);
                             }
-                            renderer.setOffset(easedOffset);
-                            offsetDirty = easing;
+                            drawStill(renderer);
+                            final long shown = System.nanoTime();
+                            renderer.close();
+                            renderer = null;
+                            Log.i(TAG, "rendered still in " + (shown - start) / 1000000L + "ms"
+                                    + " (+" + (System.nanoTime() - shown) / 1000000L + "ms cleanup)");
                         }
+                        awaitChange();
+                        continue;
                     }
 
-                    renderer.render();
-
-                    final int fps = isPowerSaveMode.get() ? FPS_POWERSAVE : easing ? FPS_HIGH : FPS_NORMAL;
-                    awaitFrame(frameStart, Prefs.limitFps(prefs, fps));
+                    if (renderer == null) {
+                        renderer = new NativeRenderer(holder.getSurface(), themeIndex(), dpiScale);
+                        renderer.setOffset(easedOffset);
+                        applyWindField(renderer);
+                        applyLocation(renderer, true);
+                    }
+                    drawFrame(renderer, prefs);
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "render thread failed", t);
             } finally {
+                prefs.unregisterOnSharedPreferenceChangeListener(settingsListener);
+                renderThreads.remove(this);
                 if (renderer != null) {
                     renderer.close();
                 }
+            }
+        }
+
+        private void drawFrame(NativeRenderer renderer, SharedPreferences prefs) {
+            synchronized (this) {
+                if (resized) {
+                    renderer.resize(pendingWidth, pendingHeight);
+                    resized = false;
+                }
+            }
+
+            final long frameStart = System.nanoTime();
+
+            applyLocation(renderer, pollWindField(renderer));
+
+            boolean easing = false;
+            synchronized (this) {
+                if (offsetDirty || Math.abs(targetOffset - easedOffset) > 0.001f) {
+                    if (isPowerSaveMode.get()) {
+                        easedOffset = targetOffset;
+                    } else {
+                        easedOffset += (targetOffset - easedOffset) * 0.18f;
+                        easing = Math.abs(targetOffset - easedOffset) > 0.001f;
+                    }
+                    renderer.setOffset(easedOffset);
+                    offsetDirty = easing;
+                }
+            }
+
+            renderer.render();
+
+            final int fps = isPowerSaveMode.get() ? FPS_POWERSAVE : easing ? FPS_HIGH : FPS_NORMAL;
+            awaitFrame(frameStart, Prefs.limitFps(prefs, fps));
+        }
+
+        /** Renders a single settled frame for static mode. */
+        private void drawStill(NativeRenderer renderer) {
+            final int width, height;
+            synchronized (this) {
+                width = pendingWidth;
+                height = pendingHeight;
+                resized = false;
+            }
+            if (width > 0 && height > 0) {
+                renderer.resize(width, height);
+            }
+            renderer.setOffset(0.0f); // a still can't parallax, so keep it centered
+
+            // Only look for a new location when the wind data changed (or none
+            // is known yet) since refreshing it saves the location, which bumps
+            // the seq and would make it stale immediately.
+            final boolean windFieldUpdated = windFieldSeq != WindField.currentSeq();
+            applyWindField(renderer);
+            applyLocation(renderer, windFieldUpdated || lastLocation == null);
+            if (lastLocation != null) {
+                renderer.setUserLocation(lastLocation[0], lastLocation[1]); // the renderer is new
+            }
+
+            renderer.skip(STATIC_FRAMES);
+            renderer.render();
+            stillDrawn = true;
+        }
+
+        /** Whether the static-mode frame needs to be updated. */
+        private synchronized boolean stillStale() {
+            return !stillDrawn || resized
+                    || windFieldSeq != WindField.currentSeq()
+                    || locationSeq != LocationActivity.currentSeq();
+        }
+
+        /** Sleeps until the static-mode frame needs to be updated. */
+        private synchronized void awaitChange() {
+            if (!running || !visible || settingsDirty || stillStale()) {
+                return;
+            }
+            try {
+                wait();
+            } catch (InterruptedException ignored) {
             }
         }
 

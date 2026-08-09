@@ -3,6 +3,7 @@ Android live wallpaper visualizing local wind patterns, inspired by the Pixel 20
 * Correct rendering on newer devices (the original shaders don't work at all).
 * Updated wind data (the official data was last updated in 2019).
 * Lower memory and CPU usage.
+* Optionally render static frames to effectively eliminate all resource usage.
 * More color schemes.
 * Better location handling.
 * Modern render pipeline using WebGPU.

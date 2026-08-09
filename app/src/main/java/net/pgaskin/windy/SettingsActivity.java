@@ -23,6 +23,7 @@ import android.preference.Preference;
 import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
 import android.preference.PreferenceScreen;
+import android.preference.SwitchPreference;
 import android.provider.Settings;
 import android.text.InputType;
 import android.text.format.DateUtils;
@@ -200,6 +201,13 @@ public class SettingsActivity extends Activity {
             maxFps.setEntryValues(R.array.max_fps_values);
             maxFps.setDefaultValue(String.valueOf(Prefs.MAX_FPS_AUTOMATIC));
             renderingCategory.addPreference(maxFps);
+
+            final SwitchPreference staticMode = new SwitchPreference(context);
+            staticMode.setKey(Prefs.KEY_STATIC_MODE);
+            staticMode.setTitle(R.string.static_mode);
+            staticMode.setSummary(R.string.static_mode_summary);
+            staticMode.setDefaultValue(false);
+            renderingCategory.addPreference(staticMode);
 
             aboutCategory = new PreferenceCategory(context);
             aboutCategory.setTitle(R.string.about);

@@ -224,6 +224,22 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeRender(
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSkip(
+    _env: EnvUnowned,
+    _class: JClass,
+    handle: jlong,
+    frames: jint,
+) {
+    if handle == 0 {
+        return;
+    }
+    let st = unsafe { state(handle) };
+    st.renderer
+        .skip(&st.device, &st.queue, frames.max(0) as u32);
+    st.last_frame = Instant::now(); // don't count the skipped time as frame time
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetOffset(
     _env: EnvUnowned,
     _class: JClass,

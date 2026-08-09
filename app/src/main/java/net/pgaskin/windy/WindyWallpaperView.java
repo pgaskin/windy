@@ -14,6 +14,8 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
 
     private static final int FPS = 30;
 
+    private static final int STATIC_FRAMES = 300;
+
     private RenderThread thread;
     private int themeIndex;
     private boolean paused;
@@ -121,6 +123,8 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
             int rendererTheme = -1;
             int windFieldSeq = -1;
             int locationSeq = -1;
+            boolean staticMode = false;
+            boolean settled = false; // static mode frame rendered
             try {
                 while (running) {
                     final int theme;
@@ -135,13 +139,21 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
                             break;
                         }
                         theme = themeIndex;
-                        if (resized && renderer != null && rendererTheme == theme) {
-                            renderer.resize(pendingWidth, pendingHeight);
+                        if (resized) {
+                            if (renderer != null && rendererTheme == theme) {
+                                renderer.resize(pendingWidth, pendingHeight);
+                            }
+                            resized = false;
+                            settled = false;
                         }
-                        resized = false;
                     }
 
                     final long frameStart = System.nanoTime();
+
+                    if (staticMode != Prefs.staticMode(prefs)) {
+                        staticMode = !staticMode;
+                        settled = false;
+                    }
 
                     if (renderer == null || rendererTheme != theme) {
                         if (renderer != null) {
@@ -152,12 +164,14 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
                         rendererTheme = theme;
                         windFieldSeq = -1;
                         locationSeq = -1;
+                        settled = false;
                     }
 
                     if (windFieldSeq != WindField.currentSeq()) {
                         final WindField.Snapshot snap = WindField.snapshot(context);
                         renderer.setWindField(snap.rgba, snap.width, snap.height);
                         windFieldSeq = snap.seq;
+                        settled = false;
                     }
                     if (locationSeq != LocationActivity.currentSeq()) {
                         locationSeq = LocationActivity.currentSeq();
@@ -165,6 +179,27 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
                         if (loc != null) {
                             renderer.setUserLocation(loc[0], loc[1]);
                         }
+                        settled = false;
+                    }
+
+                    if (staticMode) {
+                        if (!settled) {
+                            renderer.skip(STATIC_FRAMES);
+                            renderer.render();
+                            settled = true;
+                        }
+                        synchronized (this) {
+                            if (running && !paused && !resized
+                                    && themeIndex == rendererTheme
+                                    && windFieldSeq == WindField.currentSeq()
+                                    && locationSeq == LocationActivity.currentSeq()) {
+                                try {
+                                    wait();
+                                } catch (InterruptedException ignored) {
+                                }
+                            }
+                        }
+                        continue;
                     }
 
                     renderer.render();

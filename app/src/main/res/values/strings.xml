@@ -58,6 +58,8 @@
     <string name="rendering">Rendering</string>
     <string name="max_fps">Frame rate limit</string>
     <string name="max_fps_summary">Limit the frame rate to reduce power consumption (%s)</string>
+    <string name="static_mode">Static mode</string>
+    <string name="static_mode_summary">Render a still frame on each location/data update instead of animating continuously (effectively eliminates power/cpu/gpu usage).</string>
 
     <string name="about">About</string>
     <string name="source_code">Source code</string>

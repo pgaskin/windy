@@ -16,6 +16,7 @@ public final class Prefs {
     public static final String KEY_DATA_URL = "data_url";
     public static final String KEY_DATA_CONSENT = "data_consent";
     public static final String KEY_MAX_FPS = "max_fps";
+    public static final String KEY_STATIC_MODE = "static_mode";
     public static final String KEY_THEME = "theme";
 
     public static final long INTERVAL_NEVER = 0;
@@ -94,6 +95,10 @@ public final class Prefs {
             }
         }
         return fps;
+    }
+
+    public static boolean staticMode(SharedPreferences prefs) {
+        return prefs.getBoolean(KEY_STATIC_MODE, false);
     }
 
     public static int themeIndex(Context context) {

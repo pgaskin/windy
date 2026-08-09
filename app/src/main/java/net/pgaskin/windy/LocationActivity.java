@@ -197,6 +197,7 @@ public class LocationActivity extends Activity {
                 .putLong("last_updated", System.currentTimeMillis())
                 .apply();
         LocationActivity.currentSeq.incrementAndGet();
+        WindyWallpaperServiceBase.wakeRenderThreads();
     }
 
     /** Updates and saves the current location, blocking. */
