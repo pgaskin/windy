@@ -17,21 +17,67 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - run: test "${{github.ref_name}}" == "v$(grep -FA5 'name = "windy-wallpaper-' Cargo.lock | grep -E '^version\s*=\s*".+"' | cut -d '"' -f2 | sort -u | sed -E 's/^0[.]0[.]//g')" || { echo 'incorrect version in Cargo.lock'; exit 1; }
-      - run: test "${{github.ref_name}}" == "v$(grep -E '^version\s*=\s*".+"' Cargo.toml | head -n1 | cut -d '"' -f2 | sed -E 's/^0[.]0[.]//g')" || { echo 'incorrect version in workspace Cargo.toml'; exit 1; }
-      - run: test "${{github.ref_name}}" == "v$(find . -name Cargo.toml -not -path './target/*' | xargs grep -E 'windy-wallpaper-core = ' | grep -Eo 'version\s*=\s*".+"' | cut -d '"' -f2 | sort -u | sed -E 's/^0[.]0[.]//g')" || { echo 'incorrect version in Cargo.toml'; exit 1; }
-      - run: test "${{github.ref_name}}" == "v$(grep -E '^\s*versionName\s+".+"' app/build.gradle | head -n1 | cut -d '"' -f2)" || { echo 'incorrect versionName in app/build.gradle'; exit 1; }
-      - run: test "${{github.ref_name}}" == "v$(grep -E '^\s*versionCode\s+[0-9]+' app/build.gradle | head -n1 | grep -Eo '[0-9]+')" || { echo 'incorrect versionCode in app/build.gradle'; exit 1; }
+      - name: Check crate version
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs')
+
+            const versionName = ${{ toJSON(steps.version.outputs.name) }}
+            const cargoVersion = `0.0.${versionName}`
+            const errors = []
+            const check = (what, version) => { if (version !== cargoVersion) errors.push(`incorrect version in ${what}: got ${version}, expected ${cargoVersion}`) }
+
+            const lock = fs.readFileSync('Cargo.lock', 'utf8')
+            const lockPackages = [...lock.matchAll(/^name = "(windy-wallpaper-[^"]*)"\nversion = "([^"]+)"/gm)]
+            if (!lockPackages.length) throw new Error('no windy-wallpaper-* packages in Cargo.lock')
+            for (const [, name, version] of lockPackages) check(`Cargo.lock (${name})`, version)
+
+            const workspace = fs.readFileSync('Cargo.toml', 'utf8')
+            const workspaceVersion = workspace.match(/^version = "([^"]+)"/m)?.[1]
+            if (!workspaceVersion) throw new Error('missing version in workspace Cargo.toml')
+            check('workspace Cargo.toml', workspaceVersion)
+
+            const manifests = fs.readdirSync('.', {recursive: true, withFileTypes: true})
+              .filter(e => e.isFile() && e.name === 'Cargo.toml' && !e.parentPath.split(/[/\\]/).includes('target'))
+              .map(e => `${e.parentPath}/${e.name}`)
+            let deps = 0
+            for (const manifest of manifests) {
+              const version = fs.readFileSync(manifest, 'utf8').match(/^windy-wallpaper-core = .*\bversion\s*=\s*"([^"]+)"/m)?.[1]
+              if (!version) continue
+              check(`${manifest} (windy-wallpaper-core dependency)`, version)
+              deps++
+            }
+            if (!deps) throw new Error('no versioned windy-wallpaper-core dependency found in any Cargo.toml')
+
+            if (errors.length) throw new Error(errors.join('\n'))
+
+      - name: Check app version
+        id: version
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const fs = require('fs')
+            const gradle = fs.readFileSync('app/build.gradle', 'utf8')
+            const versionName = gradle.match(/^\s*versionName\s+(['"])([^'"]+)\1/m)?.[2]
+            const versionCode = gradle.match(/^\s*versionCode\s+([0-9]+)/m)?.[1]
+            if (!versionName) throw new Error('missing versionName in app/build.gradle')
+            if (!versionCode) throw new Error('missing versionCode in app/build.gradle')
+            const tag = context.ref.replace(/^refs\/tags\//, '')
+            if (versionName !== versionCode) throw new Error(`versionName (${versionName}) does not match versionCode (${versionCode})`)
+            if (tag !== `v${versionName}`) throw new Error(`tag (${tag}) does not match versionName (${versionName})`)
+            if (tag !== `v${versionCode}`) throw new Error(`tag (${tag}) does not match versionCode (${versionCode})`)
+            core.setOutput('name', versionName)
+            core.setOutput('code', versionCode)
+            core.setOutput('tag', tag)
 
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: '21'
           cache: gradle
-      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
-      - run: rustup target add aarch64-linux-android
-      - run: rustup target add armv7-linux-androideabi
-      - run: rustup target add x86_64-linux-android
+      - run: yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses; ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager 'ndk;28.2.13676358' 'build-tools;36.0.0'
+      - run: rustup toolchain install # install the toolchain pinned by rust-toolchain.toml
       - run: cargo install cargo-ndk@4.1.2
       - run: cargo install licenses@0.6.3
       - run: ./gradlew app:assembleRelease

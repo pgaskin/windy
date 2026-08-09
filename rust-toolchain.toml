@@ -1,0 +1,9 @@
+# pin the toolchain for reproducible builds
+[toolchain]
+channel = "1.96.0"
+components = ["clippy", "rustfmt"]
+targets = [
+    "aarch64-linux-android",
+    "armv7-linux-androideabi",
+    "x86_64-linux-android",
+]

@@ -39,15 +39,33 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+            // ensure the git state doesn't affect the build reproducibility
+            vcsInfo.include = false
         }
     }
+
     compileOptions {
-        sourceCompatibility = JavaVersion.toVersion("8")
-        targetCompatibility = JavaVersion.toVersion("8")
+        sourceCompatibility = JavaVersion.toVersion("11")
+        targetCompatibility = JavaVersion.toVersion("11")
     }
 
     buildFeatures {
         buildConfig = true
+    }
+
+    // exclude the dependency-metadata blob in the signing block since it's
+    // non-deterministic
+    dependenciesInfo {
+        includeInApk = false
+        includeInBundle = false
+    }
+}
+
+// pin the toolchain for reproducible builds (and match f-droid and github
+// actions)
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
     }
 }
 
@@ -70,6 +88,10 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
         workspaceDir.set(rootProject.layout.projectDirectory)
         cargoPackage.set("windy-wallpaper-android")
         ndkDirectory.set(androidComponents.sdkComponents.ndkDirectory)
+        // pin the toolchain for reproducible builds (the rustc version comes
+        // from rust-toolchain.toml, and the ndk one from android.ndkVersion)
+        rustToolchainFile.set(rootProject.file("rust-toolchain.toml"))
+        cargoNdkVersion.set("4.1.2")
         abiFilters.set(provider {
             Set<String> abis = [] as Set
             if (android.defaultConfig.ndk.abiFilters != null) {

@@ -12,9 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
-      - run: rustup component add clippy
-      - run: rustup component add rustfmt
+      - run: rustup toolchain install # install the toolchain pinned by rust-toolchain.toml
       - run: cargo check --locked --workspace --verbose
       - run: cargo build --locked --workspace --verbose
       - run: cargo test --locked --workspace --verbose
@@ -26,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
+      - run: rustup toolchain install # install the toolchain pinned by rust-toolchain.toml
       - run: cargo build --locked --package windy-wallpaper-api
       - run: cargo run --locked --package windy-wallpaper-api -- --once
       - uses: actions/upload-artifact@v7
@@ -45,12 +43,10 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: '21'
           cache: gradle
-      - run: rustup default 1.96.0-x86_64-unknown-linux-gnu
-      - run: rustup target add aarch64-linux-android
-      - run: rustup target add armv7-linux-androideabi
-      - run: rustup target add x86_64-linux-android
+      - run: yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses; ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager 'ndk;28.2.13676358' 'build-tools;36.0.0'
+      - run: rustup toolchain install # install the toolchain pinned by rust-toolchain.toml
       - run: cargo install cargo-ndk@4.1.2
       - run: cargo install licenses@0.6.3
       - run: ./gradlew app:assembleDebug

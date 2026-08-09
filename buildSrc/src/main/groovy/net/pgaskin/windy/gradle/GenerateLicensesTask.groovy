@@ -53,6 +53,7 @@ abstract class GenerateLicensesTask extends DefaultTask {
         env.put("CARGO_TERM_PROGRESS_WHEN", "never")
         env.put("CARGO_TERM_COLOR", "never")
 
+        // TODO: this isn't reproducible
         execOperations.exec {
             it.workingDir = crateDir.get().asFile
             it.commandLine = ["cargo", "licenses", "collect", "--path", collected.absolutePath]
