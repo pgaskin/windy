@@ -35,6 +35,13 @@ The shaders are inspired by the official Pixel windy live wallpaper, but rewritt
 <td><img src="app/src/main/res/drawable/windy_sparkwhirled.jpg"></td>
 </tr></tbody></table>
 
+<table><tbody><tr>
+<td><img src="metadata/en-US/images/phoneScreenshots/1.png"></td>
+<td><img src="metadata/en-US/images/phoneScreenshots/2.png"></td>
+<td><img src="metadata/en-US/images/phoneScreenshots/3.png"></td>
+<td><img src="metadata/en-US/images/phoneScreenshots/4.png"></td>
+</tr></tbody></table>
+
 #### Creating themes
 
 There is a built-in tool to preview the wallpaper locally, update the preview images, and create themes.
