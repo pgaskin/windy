@@ -190,6 +190,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
                 applyLocation(renderer, windFieldUpdated || (fresh && lastLocation == null), fresh);
 
                 if (staticMode) {
+                    renderer.render(); // render the initial blank frame so it feels more responsive
                     renderer.skip(STATIC_FRAMES);
                     renderer.render();
                     settled = true;
