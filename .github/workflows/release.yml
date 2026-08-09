@@ -18,13 +18,21 @@ jobs:
       - uses: actions/checkout@v7
 
       - name: Check crate version
+        id: version
         uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs')
 
-            const versionName = ${{ toJSON(steps.version.outputs.name) }}
-            const cargoVersion = `0.0.${versionName}`
+            const workspace = fs.readFileSync('Cargo.toml', 'utf8')
+            const cargoVersion = workspace.match(/^version = "([^"]+)"/m)?.[1]
+            if (!cargoVersion) throw new Error('missing version in workspace Cargo.toml')
+            const versionName = cargoVersion.match(/^0\.0\.([0-9]+)$/)?.[1]
+            if (!versionName) throw new Error(`version in workspace Cargo.toml (${cargoVersion}) is not of the form 0.0.N`)
+
+            const tag = context.ref.replace(/^refs\/tags\//, '')
+            if (tag !== `v${versionName}`) throw new Error(`tag (${tag}) does not match workspace Cargo.toml version (${cargoVersion})`)
+
             const errors = []
             const check = (what, version) => { if (version !== cargoVersion) errors.push(`incorrect version in ${what}: got ${version}, expected ${cargoVersion}`) }
 
@@ -32,11 +40,6 @@ jobs:
             const lockPackages = [...lock.matchAll(/^name = "(windy-wallpaper-[^"]*)"\nversion = "([^"]+)"/gm)]
             if (!lockPackages.length) throw new Error('no windy-wallpaper-* packages in Cargo.lock')
             for (const [, name, version] of lockPackages) check(`Cargo.lock (${name})`, version)
-
-            const workspace = fs.readFileSync('Cargo.toml', 'utf8')
-            const workspaceVersion = workspace.match(/^version = "([^"]+)"/m)?.[1]
-            if (!workspaceVersion) throw new Error('missing version in workspace Cargo.toml')
-            check('workspace Cargo.toml', workspaceVersion)
 
             const manifests = fs.readdirSync('.', {recursive: true, withFileTypes: true})
               .filter(e => e.isFile() && e.name === 'Cargo.toml' && !e.parentPath.split(/[/\\]/).includes('target'))
@@ -52,24 +55,23 @@ jobs:
 
             if (errors.length) throw new Error(errors.join('\n'))
 
+            core.setOutput('code', versionName)
+            core.setOutput('tag', tag)
+
       - name: Check app version
-        id: version
         uses: actions/github-script@v8
         with:
           script: |
             const fs = require('fs')
+
+            const expected = ${{ toJSON(steps.version.outputs.code) }}
             const gradle = fs.readFileSync('app/build.gradle', 'utf8')
             const versionName = gradle.match(/^\s*versionName\s+(['"])([^'"]+)\1/m)?.[2]
             const versionCode = gradle.match(/^\s*versionCode\s+([0-9]+)/m)?.[1]
             if (!versionName) throw new Error('missing versionName in app/build.gradle')
             if (!versionCode) throw new Error('missing versionCode in app/build.gradle')
-            const tag = context.ref.replace(/^refs\/tags\//, '')
-            if (versionName !== versionCode) throw new Error(`versionName (${versionName}) does not match versionCode (${versionCode})`)
-            if (tag !== `v${versionName}`) throw new Error(`tag (${tag}) does not match versionName (${versionName})`)
-            if (tag !== `v${versionCode}`) throw new Error(`tag (${tag}) does not match versionCode (${versionCode})`)
-            core.setOutput('name', versionName)
-            core.setOutput('code', versionCode)
-            core.setOutput('tag', tag)
+            if (versionName !== expected) throw new Error(`versionName (${versionName}) does not match crate version (${expected})`)
+            if (versionCode !== expected) throw new Error(`versionCode (${versionCode}) does not match crate version (${expected})`)
 
       - uses: actions/setup-java@v5
         with:
@@ -116,12 +118,15 @@ jobs:
         with:
           retries: 3
           script: |
+            const tag = ${{ toJSON(steps.version.outputs.tag) }}
+            const code = ${{ toJSON(steps.version.outputs.code) }}
             const {data: {id: id}} = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: context.ref.replace(/^refs\/tags\//, ''),
+              tag_name: tag,
               target_commitish: context.sha,
-              name: context.ref.replace(/^refs\/tags\//, ''),
+              name: tag,
+              body: require('fs').readFileSync(`metadata/en-US/changelogs/${code}.txt`, 'utf8'),
               draft: true,
             })
             core.setOutput('id', id)
