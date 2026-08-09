@@ -48,7 +48,6 @@ jobs:
       - run: yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager --licenses; ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager 'ndk;28.2.13676358' 'build-tools;36.0.0'
       - run: rustup toolchain install # install the toolchain pinned by rust-toolchain.toml
       - run: cargo install cargo-ndk@4.1.2
-      - run: cargo install licenses@0.6.3
       - run: ./gradlew app:assembleDebug
       - uses: actions/upload-artifact@v7
         with:

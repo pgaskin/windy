@@ -3,10 +3,14 @@
 
 package net.pgaskin.windy.gradle
 
+import groovy.json.JsonSlurper
+
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.SetProperty
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.OutputDirectory
@@ -15,15 +19,32 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecOperations
 
+import java.util.regex.Pattern
+
 import javax.inject.Inject
 
-// based on what I had claude do for cmus-android, but modified to use cargo-licenses
+// based on what I had claude do for cmus-android, but modified to resolve the
+// crates with cargo-metadata
 abstract class GenerateLicensesTask extends DefaultTask {
     static final String ASSET = "windy/licenses.html"
+
+    // rust target triples for the android abis (matches cargo-ndk)
+    private static final Map<String, String> ABI_TARGETS = [
+        "arm64-v8a"  : "aarch64-linux-android",
+        "armeabi-v7a": "armv7-linux-androideabi",
+        "x86"        : "i686-linux-android",
+        "x86_64"     : "x86_64-linux-android",
+    ]
+
+    // files crates conventionally ship their license terms in
+    private static final Pattern LICENSE_FILE = ~/(?i)^(licen[sc]e|copying|copyright|notice|unlicen[sc]e)([-._].*)?$/
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     abstract RegularFileProperty getCargoLock()
+
+    @Input
+    abstract SetProperty<String> getAbiFilters()
 
     @Internal
     abstract DirectoryProperty getCrateDir()
@@ -36,74 +57,139 @@ abstract class GenerateLicensesTask extends DefaultTask {
 
     @TaskAction
     void generate() {
+        def abis = abiFilters.get()
+        if (abis.isEmpty()) {
+            throw new GradleException("NDK abiFilters must be set")
+        }
+
         def assetsRoot = assetsOutputDir.get().asFile
         assetsRoot.deleteDir()
         def asset = new File(assetsRoot, ASSET)
         asset.parentFile.mkdirs()
 
-        if (!isCargoLicensesInstalled()) {
-            throw new GradleException("cargo-licenses is required (cargo install licenses)")
-        }
-
-        def collected = new File(temporaryDir, "licenses")
-        collected.deleteDir()
-        collected.mkdirs()
-
-        def env = new LinkedHashMap<String, String>(System.getenv())
-        env.put("CARGO_TERM_PROGRESS_WHEN", "never")
-        env.put("CARGO_TERM_COLOR", "never")
-
-        // TODO: this isn't reproducible
-        execOperations.exec {
-            it.workingDir = crateDir.get().asFile
-            it.commandLine = ["cargo", "licenses", "collect", "--path", collected.absolutePath]
-            it.environment = env
-        }
-
-        asset.setText(renderHtml(parseLicenses(collected)), "UTF-8")
-    }
-
-    private boolean isCargoLicensesInstalled() {
-        try {
-            def out = new ByteArrayOutputStream()
-            def result = execOperations.exec {
-                it.commandLine = ["cargo", "licenses", "--help"]
-                it.standardOutput = out
-                it.errorOutput = out
-                it.ignoreExitValue = true
+        // the dependencies are resolved per-target since the crate graph is
+        // platform-dependent, and a crate can be used by more than one abi
+        def crates = new TreeMap<List<String>, Map>({ List<String> a, List<String> b ->
+            def order = a[0] <=> b[0]
+            order != 0 ? order : a[1] <=> b[1]
+        } as Comparator)
+        abis.toSorted().each { abi ->
+            def target = ABI_TARGETS.get(abi)
+            if (target == null) {
+                throw new GradleException("unknown rust target for abi ${abi}")
             }
-            return result.exitValue == 0
-        } catch (Exception ex) {
-            logger.info("failed to run cargo-licenses: ${ex}")
-            return false
-        }
-    }
-
-    static Map<String, List<Map>> parseLicenses(File dir) {
-        def crates = new TreeMap<String, List<Map>>(String.CASE_INSENSITIVE_ORDER)
-        dir.listFiles()?.sort { it.name }?.each { file ->
-            if (!file.isFile()) {
-                return
+            resolveCrates(target).each { crate ->
+                crates.putIfAbsent([crate.name.toString().toLowerCase(Locale.ROOT), crate.version.toString()], crate)
             }
-            def sep = file.name.lastIndexOf("-LICENSE")
-            def crate = sep < 0 ? file.name : file.name.substring(0, sep)
-            crates.computeIfAbsent(crate, { [] }) << [
-                name: sep < 0 ? file.name : file.name.substring(sep + 1),
-                text: file.getText("UTF-8"),
-            ]
         }
-        return crates
+
+        asset.setText(renderHtml(crates.values().toList()), "UTF-8")
     }
 
-    static String renderHtml(Map<String, List<Map>> crates) {
-        def body = new StringBuilder()
-        crates.each { crate, licenses ->
-            body << "<details>\n<summary>${htmlEscape(crate)}</summary>\n"
-            licenses.each { license ->
-                if (licenses.size() > 1) {
-                    body << "<div class=\"fname\">${htmlEscape(license.name.toString())}</div>\n"
+    // the normal (i.e., not dev or build) dependencies of the crate, excluding
+    // the workspace's own members
+    List<Map> resolveCrates(String target) {
+        def metadata = new JsonSlurper().parseText(cargoMetadata(target)) as Map
+
+        def packages = [:]
+        (metadata.packages as List).each { packages.put(it.id, it) }
+
+        def nodes = [:]
+        ((metadata.resolve as Map).nodes as List).each { nodes.put(it.id, it) }
+
+        def root = (metadata.resolve as Map).root
+        if (root == null) {
+            throw new GradleException("cargo metadata did not resolve a root package for ${crateDir.get().asFile}")
+        }
+        def members = new HashSet<>(metadata.workspace_members as List)
+
+        def seen = new HashSet<String>()
+        def pending = [root] as LinkedList
+        while (!pending.isEmpty()) {
+            def id = pending.poll()
+            if (!seen.add(id.toString())) {
+                continue
+            }
+            def node = nodes.get(id)
+            if (node == null) {
+                throw new GradleException("cargo metadata is missing a resolve node for ${id}")
+            }
+            (node.deps as List).each { dep ->
+                def kinds = dep.dep_kinds as List
+                if (kinds == null || kinds.isEmpty() || kinds.any { it.kind == null }) {
+                    pending.add(dep.pkg)
                 }
-                body << "<pre>${htmlEscape(license.text.toString())}</pre>\n"
+            }
+        }
+
+        return seen.findAll { !members.contains(it) }.collect { describeCrate(packages.get(it) as Map) }
+    }
+
+    String cargoMetadata(String target) {
+        def out = new ByteArrayOutputStream()
+        def cmd = [
+            "cargo", "metadata",
+            "--locked",
+            "--format-version", "1",
+            "--filter-platform", target,
+            "--manifest-path", new File(crateDir.get().asFile, "Cargo.toml").absolutePath,
+        ]
+        try {
+            execOperations.exec {
+                it.commandLine = cmd
+                it.standardOutput = out
+                it.environment = System.getenv() + [
+                    "CARGO_TERM_PROGRESS_WHEN": "never",
+                    "CARGO_TERM_COLOR": "never",
+                ]
+            }
+        } catch (Exception ex) {
+            throw new GradleException("failed to run ${cmd.join(' ')}: ${ex}", ex)
+        }
+        return out.toString("UTF-8")
+    }
+
+    static Map describeCrate(Map pkg) {
+        if (pkg == null) {
+            throw new GradleException("cargo metadata is missing a resolved package")
+        }
+        def dir = new File(pkg.manifest_path.toString()).parentFile
+
+        def files = new TreeMap<String, File>()
+        dir.listFiles()?.each { file ->
+            if (file.isFile() && LICENSE_FILE.matcher(file.name).matches()) {
+                files.put(file.name, file)
+            }
+        }
+        // a crate can point at a license file with a name we don't recognize
+        if (pkg.license_file != null) {
+            def file = new File(dir, pkg.license_file.toString())
+            if (file.isFile()) {
+                files.put(file.name, file)
+            }
+        }
+
+        return [
+            name: pkg.name,
+            version: pkg.version,
+            license: pkg.license,
+            files: files.collect { name, file -> [name: name, text: file.getText("UTF-8")] },
+        ]
+    }
+
+    static String renderHtml(List<Map> crates) {
+        def body = new StringBuilder()
+        crates.each { crate ->
+            body << "<details>\n<summary>${htmlEscape("${crate.name} ${crate.version}".toString())}</summary>\n"
+            if (crate.license != null) {
+                body << "<div class=\"src\">${htmlEscape(crate.license.toString())}</div>\n"
+            }
+            def files = crate.files as List
+            files.each { file ->
+                if (files.size() > 1) {
+                    body << "<div class=\"fname\">${htmlEscape(file.name.toString())}</div>\n"
+                }
+                body << "<pre>${htmlEscape(file.text.toString())}</pre>\n"
             }
             body << "</details>\n"
         }

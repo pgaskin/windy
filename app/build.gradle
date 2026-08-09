@@ -69,6 +69,19 @@ java {
     }
 }
 
+def ndkAbiFilters = provider {
+    Set<String> abis = [] as Set
+    if (android.defaultConfig.ndk.abiFilters != null) {
+        abis.addAll(android.defaultConfig.ndk.abiFilters)
+    }
+    android.productFlavors.each { flavor ->
+        if (flavor.ndk.abiFilters != null) {
+            abis.addAll(flavor.ndk.abiFilters)
+        }
+    }
+    abis
+}
+
 androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     def cap = variant.name.substring(0, 1).toUpperCase() + variant.name.substring(1)
     def genThemes = tasks.register("generate${cap}Themes", GenerateThemesTask) {
@@ -81,6 +94,7 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     def genLicenses = tasks.register("generate${cap}Licenses", GenerateLicensesTask) {
         cargoLock.set(rootProject.file("Cargo.lock"))
         crateDir.set(layout.projectDirectory.dir("src/main/rust"))
+        abiFilters.set(ndkAbiFilters)
     }
     variant.sources.assets?.addGeneratedSourceDirectory(genLicenses) { it.assetsOutputDir }
 
@@ -92,18 +106,7 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
         // from rust-toolchain.toml, and the ndk one from android.ndkVersion)
         rustToolchainFile.set(rootProject.file("rust-toolchain.toml"))
         cargoNdkVersion.set("4.1.2")
-        abiFilters.set(provider {
-            Set<String> abis = [] as Set
-            if (android.defaultConfig.ndk.abiFilters != null) {
-                abis.addAll(android.defaultConfig.ndk.abiFilters)
-            }
-            android.productFlavors.each { flavor ->
-                if (flavor.ndk.abiFilters != null) {
-                    abis.addAll(flavor.ndk.abiFilters)
-                }
-            }
-            abis
-        })
+        abiFilters.set(ndkAbiFilters)
         minSdkVersion.set(provider {
             def v = android.defaultConfig.minSdk
             (v instanceof com.android.build.api.variant.AndroidVersion) ? v.apiLevel : v
