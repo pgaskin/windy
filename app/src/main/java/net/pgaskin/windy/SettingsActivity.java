@@ -5,6 +5,7 @@ package net.pgaskin.windy;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -73,6 +74,8 @@ public class SettingsActivity extends Activity {
         private Preference backgroundLocationPref;
         private Preference updateNowPref;
         private EditTextPreference urlPref;
+        private PreferenceCategory aboutCategory;
+        private Preference dataSourcePref;
         private boolean updating;
 
         private AlertDialog locationDialog;
@@ -184,6 +187,45 @@ public class SettingsActivity extends Activity {
             });
             dataCategory.addPreference(urlPref);
 
+            aboutCategory = new PreferenceCategory(context);
+            aboutCategory.setTitle(R.string.about);
+            screen.addPreference(aboutCategory);
+
+            final Preference source = new Preference(context);
+            source.setOrder(0);
+            source.setTitle(R.string.source_code);
+            source.setSummary(R.string.source_code_url);
+            source.setOnPreferenceClickListener(p -> {
+                openUrl(getString(R.string.source_code_url));
+                return true;
+            });
+            aboutCategory.addPreference(source);
+
+            final Preference version = new Preference(context);
+            version.setOrder(1);
+            version.setTitle(R.string.version);
+            version.setSummary(BuildConfig.VERSION_NAME);
+            version.setSelectable(false);
+            aboutCategory.addPreference(version);
+
+            final Preference licenses = new Preference(context);
+            licenses.setOrder(2);
+            licenses.setTitle(R.string.licenses);
+            licenses.setOnPreferenceClickListener(p -> {
+                startActivity(new Intent(getActivity(), LicensesActivity.class));
+                return true;
+            });
+            aboutCategory.addPreference(licenses);
+
+            dataSourcePref = new Preference(context);
+            dataSourcePref.setOrder(3); // added and removed as needed
+            dataSourcePref.setTitle(R.string.data_source);
+            dataSourcePref.setSummary(R.string.data_source_name);
+            dataSourcePref.setOnPreferenceClickListener(p -> {
+                openUrl(getString(R.string.data_source_url));
+                return true;
+            });
+
             setPreferenceScreen(screen);
         }
 
@@ -256,6 +298,30 @@ public class SettingsActivity extends Activity {
                       : formatUpdatedSource(context));
 
             urlPref.setSummary(Prefs.dataUrl(context));
+
+            // the data source is only known for the default API
+            if (isDefaultDataHost(context)) {
+                aboutCategory.addPreference(dataSourcePref);
+            } else {
+                aboutCategory.removePreference(dataSourcePref);
+            }
+        }
+
+        private static boolean isDefaultDataHost(Context context) {
+            try {
+                final String host = new URL(Prefs.dataUrl(context)).getHost();
+                return host.equalsIgnoreCase(new URL(BuildConfig.WIND_FIELD_API_URL).getHost());
+            } catch (MalformedURLException ex) {
+                return false;
+            }
+        }
+
+        private void openUrl(String url) {
+            try {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+            } catch (ActivityNotFoundException ex) {
+                Log.w(TAG, "no activity to open " + url + ": " + ex);
+            }
         }
 
         private static String normalizeUrl(String value) {

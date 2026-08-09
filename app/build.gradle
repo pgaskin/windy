@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import net.pgaskin.windy.gradle.CargoBuildTask
+import net.pgaskin.windy.gradle.GenerateLicensesTask
 import net.pgaskin.windy.gradle.GenerateThemesTask
 
 plugins {
@@ -58,6 +59,12 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     variant.sources.java?.addGeneratedSourceDirectory(genThemes) { it.javaOutputDir }
     variant.sources.res?.addGeneratedSourceDirectory(genThemes) { it.resOutputDir }
     variant.sources.manifests.addGeneratedManifestFile(genThemes) { it.manifestOutput }
+
+    def genLicenses = tasks.register("generate${cap}Licenses", GenerateLicensesTask) {
+        cargoLock.set(rootProject.file("Cargo.lock"))
+        crateDir.set(layout.projectDirectory.dir("src/main/rust"))
+    }
+    variant.sources.assets?.addGeneratedSourceDirectory(genLicenses) { it.assetsOutputDir }
 
     def cargoBuild = tasks.register("cargoBuild${cap}Native", CargoBuildTask) {
         workspaceDir.set(rootProject.layout.projectDirectory)
