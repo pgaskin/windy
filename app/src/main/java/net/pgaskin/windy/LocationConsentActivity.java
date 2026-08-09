@@ -18,8 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
-public class LocationActivity extends Activity {
-    private static final String TAG = "LocationActivity";
+public class LocationConsentActivity extends Activity {
+    private static final String TAG = "LocationConsentActivity";
 
     private static final AtomicInteger currentSeq = new AtomicInteger();
 
@@ -86,7 +86,7 @@ public class LocationActivity extends Activity {
         }
         if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             Log.i(TAG, "saving location since we have access");
-            LocationActivity.updateLocation(this, false, true);
+            LocationConsentActivity.updateLocation(this, false, true);
         }
         // the dialogs are always shown first so the permission is never
         // requested without explaining what it's for
@@ -103,7 +103,7 @@ public class LocationActivity extends Activity {
                 .setNegativeButton(R.string.decline, (dialog, which) -> {
                     Log.w(TAG, "foreground location declined");
                     this.doneForeground = true;
-                    LocationActivity.markLocationFlowComplete(this);
+                    LocationConsentActivity.markLocationFlowComplete(this);
                     this.finish();
                 })
                 .create().show();
@@ -122,30 +122,30 @@ public class LocationActivity extends Activity {
                 .setNegativeButton(R.string.decline, (dialog, which) -> {
                     Log.w(TAG, "background location declined");
                     this.doneBackground = true;
-                    LocationActivity.markLocationFlowComplete(this);
+                    LocationConsentActivity.markLocationFlowComplete(this);
                     this.finish();
                 })
                 .create().show();
             return;
         }
-        LocationActivity.markLocationFlowComplete(this);
+        LocationConsentActivity.markLocationFlowComplete(this);
         this.finish();
     }
 
     /** Returns the current location as {@code {lng, lat}}, or null if unknown. */
     public static float[] updateLocation(Context context, boolean requestIfMissing) {
-        return LocationActivity.updateLocation(context, requestIfMissing, false);
+        return LocationConsentActivity.updateLocation(context, requestIfMissing, false);
     }
 
     private static float[] updateLocation(Context context, boolean requestIfMissing, boolean isForeground) {
         if (Prefs.locationInterval(context) == 0) {
-            return LocationActivity.savedLocation(context); // manual
+            return LocationConsentActivity.savedLocation(context); // manual
         }
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 || (!isForeground && context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
-            if (requestIfMissing && !LocationActivity.getLocationFlowComplete(context)) {
+            if (requestIfMissing && !LocationConsentActivity.getLocationFlowComplete(context)) {
                 Log.i(TAG, "permissions missing, starting location flow");
-                Intent intent = new Intent(context, LocationActivity.class);
+                Intent intent = new Intent(context, LocationConsentActivity.class);
                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
                 context.startActivity(intent);
             }
@@ -153,16 +153,16 @@ public class LocationActivity extends Activity {
             final LocationManager mgr = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
             final Location loc = mgr.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
             if (loc != null) {
-                final float lng = LocationActivity.round(loc.getLongitude());
-                final float lat = LocationActivity.round(loc.getLatitude());
+                final float lng = LocationConsentActivity.round(loc.getLongitude());
+                final float lat = LocationConsentActivity.round(loc.getLatitude());
                 Log.i(TAG, "updated user location lng=" + lng + " lat=" + lat);
-                LocationActivity.saveLocation(context, lng, lat);
+                LocationConsentActivity.saveLocation(context, lng, lat);
                 return new float[]{lng, lat};
             } else {
                 Log.w(TAG, "failed to update user location");
             }
         }
-        final float[] stored = LocationActivity.savedLocation(context);
+        final float[] stored = LocationConsentActivity.savedLocation(context);
         if (stored != null) {
             Log.i(TAG, "using last known location lng=" + stored[0] + " lat=" + stored[1]);
             return stored;
@@ -173,7 +173,7 @@ public class LocationActivity extends Activity {
 
     /** Returns the saved location as {@code {lng, lat}}, or null if unknown. */
     public static float[] savedLocation(Context context) {
-        final SharedPreferences prefs = LocationActivity.getPreferences(context);
+        final SharedPreferences prefs = LocationConsentActivity.getPreferences(context);
         final float lng = prefs.getFloat("last_lng", 0.0f);
         final float lat = prefs.getFloat("last_lat", 0.0f);
         return lng != 0.0f || lat != 0.0f ? new float[]{lng, lat} : null;
@@ -181,23 +181,23 @@ public class LocationActivity extends Activity {
 
     /** Returns the time the stored location was last updated, or 0 if never. */
     public static long lastUpdated(Context context) {
-        return LocationActivity.getPreferences(context).getLong("last_updated", 0);
+        return LocationConsentActivity.getPreferences(context).getLong("last_updated", 0);
     }
 
     /** Whether the location has ever been used, i.e. this isn't a fresh installation. */
     static boolean hasHistory(Context context) {
-        return !LocationActivity.getPreferences(context).getAll().isEmpty();
+        return !LocationConsentActivity.getPreferences(context).getAll().isEmpty();
     }
 
     /** Updates the saved location. */
     public static void saveLocation(Context context, float lng, float lat) {
-        LocationActivity.getPreferences(context).edit()
+        LocationConsentActivity.getPreferences(context).edit()
                 .putFloat("last_lng", lng)
                 .putFloat("last_lat", lat)
                 .putLong("last_updated", System.currentTimeMillis())
                 .apply();
-        LocationActivity.currentSeq.incrementAndGet();
-        WindyWallpaperServiceBase.wakeRenderThreads();
+        LocationConsentActivity.currentSeq.incrementAndGet();
+        WindyWallpaperRenderer.wakeAll();
     }
 
     /** Updates and saves the current location, blocking. */
@@ -218,16 +218,16 @@ public class LocationActivity extends Activity {
                 callback.accept(null);
                 return;
             }
-            final float lng = LocationActivity.round(loc.getLongitude());
-            final float lat = LocationActivity.round(loc.getLatitude());
+            final float lng = LocationConsentActivity.round(loc.getLongitude());
+            final float lat = LocationConsentActivity.round(loc.getLatitude());
             Log.i(TAG, "got current location lng=" + lng + " lat=" + lat);
-            LocationActivity.saveLocation(context, lng, lat);
+            LocationConsentActivity.saveLocation(context, lng, lat);
             callback.accept(new float[]{lng, lat});
         });
     }
 
     public static int currentSeq() {
-        return LocationActivity.currentSeq.get();
+        return LocationConsentActivity.currentSeq.get();
     }
 
     private static float round(double deg) {
@@ -237,11 +237,11 @@ public class LocationActivity extends Activity {
     private static final AtomicBoolean locationFlowCompleteCached = new AtomicBoolean();
 
     private static boolean getLocationFlowComplete(Context context) {
-        if (LocationActivity.locationFlowCompleteCached.get()) {
+        if (LocationConsentActivity.locationFlowCompleteCached.get()) {
             return true;
         }
-        if (LocationActivity.getPreferences(context).getBoolean("permission_requested", false)) {
-            LocationActivity.locationFlowCompleteCached.set(true);
+        if (LocationConsentActivity.getPreferences(context).getBoolean("permission_requested", false)) {
+            LocationConsentActivity.locationFlowCompleteCached.set(true);
             return true;
         }
         return false;
@@ -249,12 +249,12 @@ public class LocationActivity extends Activity {
 
     private static void markLocationFlowComplete(Context context) {
         Log.i(TAG, "marking location flow as complete; will not ask again");
-        LocationActivity.getPreferences(context).edit().putBoolean("permission_requested", true).apply();
-        LocationActivity.locationFlowCompleteCached.set(true);
+        LocationConsentActivity.getPreferences(context).edit().putBoolean("permission_requested", true).apply();
+        LocationConsentActivity.locationFlowCompleteCached.set(true);
     }
 
     public static boolean getLocationFlowCompleteCached() {
-        return LocationActivity.locationFlowCompleteCached.get();
+        return LocationConsentActivity.locationFlowCompleteCached.get();
     }
 
     private static SharedPreferences getPreferences(Context context) {

@@ -10,14 +10,14 @@ import android.view.Surface;
  * Not thread-safe. All methods (including {@link #close()}) must be called from
  * the same thread.
  */
-public final class NativeRenderer implements AutoCloseable {
+public final class WindyWallpaperNative implements AutoCloseable {
     static {
         System.loadLibrary("windy_jni");
     }
 
     private long handle;
 
-    public NativeRenderer(Surface surface, int themeIndex, float dpiScale) {
+    public WindyWallpaperNative(Surface surface, int themeIndex, float dpiScale) {
         this.handle = nativeCreate(surface, themeIndex, dpiScale);
         if (this.handle == 0) {
             throw new RuntimeException("failed to create native renderer");

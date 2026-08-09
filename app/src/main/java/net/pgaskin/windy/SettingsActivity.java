@@ -297,12 +297,12 @@ public class SettingsActivity extends Activity {
                 return;
             }
 
-            final float[] location = LocationActivity.savedLocation(context);
+            final float[] location = LocationConsentActivity.savedLocation(context);
             final long locationInterval = Prefs.locationInterval(context);
             locationPref.setTitle(location != null ? formatLocation(location) : getString(R.string.location_unset));
             locationPref.setSummary(locationInterval == 0
                     ? getString(R.string.location_manual)
-                    : formatUpdated(context, LocationActivity.lastUpdated(context)));
+                    : formatUpdated(context, LocationConsentActivity.lastUpdated(context)));
 
             if (context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 locationCategory.removePreference(backgroundLocationPref);
@@ -433,7 +433,7 @@ public class SettingsActivity extends Activity {
             final Context context = getActivity();
             final View view = getActivity().getLayoutInflater().inflate(R.layout.dialog_location, null);
             final EditText input = view.findViewById(R.id.location_input);
-            final float[] current = LocationActivity.savedLocation(context);
+            final float[] current = LocationConsentActivity.savedLocation(context);
             if (current != null) {
                 input.setText(formatLocation(current));
                 input.setSelection(input.getText().length());
@@ -455,7 +455,7 @@ public class SettingsActivity extends Activity {
                         input.setError(getString(R.string.location_invalid));
                         return;
                     }
-                    LocationActivity.saveLocation(context, location[0], location[1]);
+                    LocationConsentActivity.saveLocation(context, location[0], location[1]);
                     refresh();
                     dialog.dismiss();
                 });
@@ -480,7 +480,7 @@ public class SettingsActivity extends Activity {
             if (locationDialog != null) {
                 locationDialog.getButton(DialogInterface.BUTTON_NEUTRAL).setEnabled(false);
             }
-            LocationActivity.requestCurrentLocation(context, location -> {
+            LocationConsentActivity.requestCurrentLocation(context, location -> {
                 if (getActivity() == null) {
                     return;
                 }

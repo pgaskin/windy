@@ -157,7 +157,7 @@ unsafe fn state<'a>(handle: jlong) -> &'a mut State {
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeCreate(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeCreate(
     mut env: EnvUnowned,
     _class: JClass,
     surface: JObject,
@@ -198,7 +198,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeCreate(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeResize(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeResize(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -212,7 +212,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeResize(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeRender(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeRender(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -224,7 +224,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeRender(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSkip(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSkip(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -240,7 +240,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSkip(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetOffset(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetOffset(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -255,7 +255,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetOffset(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetUserLocation(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetUserLocation(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -271,7 +271,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetUserLocati
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetWindField(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetWindField(
     mut env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -299,7 +299,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeSetWindField(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeDestroy(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeDestroy(
     _env: EnvUnowned,
     _class: JClass,
     handle: jlong,
@@ -311,7 +311,7 @@ pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeDestroy(
 }
 
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_net_pgaskin_windy_NativeRenderer_nativeThemeColor(
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeColor(
     _env: EnvUnowned,
     _class: JClass,
     theme_index: jint,

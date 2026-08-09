@@ -84,7 +84,7 @@ public class WindField {
             }
             currentSeq.addAndGet(1);
         }
-        WindyWallpaperServiceBase.wakeRenderThreads();
+        WindyWallpaperRenderer.wakeAll();
     }
 
     private static File windCacheFile(Context context, boolean temp) {
@@ -107,7 +107,7 @@ public class WindField {
             currentBitmap = img;
             currentSeq.addAndGet(1);
         }
-        WindyWallpaperServiceBase.wakeRenderThreads();
+        WindyWallpaperRenderer.wakeAll();
 
         Files.move(windCacheFile(context, true).toPath(), windCacheFile(context, false).toPath(), StandardCopyOption.ATOMIC_MOVE);
     }

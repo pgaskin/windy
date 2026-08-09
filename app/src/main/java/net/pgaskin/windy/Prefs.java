@@ -76,7 +76,7 @@ public final class Prefs {
         if (prefs.contains(KEY_DATA_CONSENT)) {
             return;
         }
-        if (WindFieldUpdateService.hasHistory(context) || LocationActivity.hasHistory(context)) {
+        if (WindFieldUpdateService.hasHistory(context) || LocationConsentActivity.hasHistory(context)) {
             Log.i(TAG, "keeping wind data updates enabled for an existing installation");
             prefs.edit().putBoolean(KEY_DATA_CONSENT, true).apply();
         }

@@ -61,7 +61,7 @@
             android:parentActivityName="net.pgaskin.windy.SettingsActivity" />
 
         <activity
-            android:name="net.pgaskin.windy.LocationActivity"
+            android:name="net.pgaskin.windy.LocationConsentActivity"
             android:theme="@style/Theme.Transparent" />
 
         <activity
