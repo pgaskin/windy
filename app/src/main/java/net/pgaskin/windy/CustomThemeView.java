@@ -1,0 +1,327 @@
+// SPDX-FileCopyrightText: 2026 Patrick Gaskin
+// SPDX-License-Identifier: AGPL-3.0-or-later
+package net.pgaskin.windy;
+
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.util.AttributeSet;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.LinearLayout;
+import android.widget.SeekBar;
+import android.widget.Spinner;
+import android.widget.TextView;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
+public class CustomThemeView extends LinearLayout {
+    private static final int[] COLOR_LABELS = { // [CustomTheme.COLOR_*]
+            R.string.custom_color_slow,
+            R.string.custom_color_fast,
+            R.string.custom_color_bg1,
+            R.string.custom_color_bg2,
+            R.string.custom_color_tint,
+    };
+
+    private static final class ParamSpec {
+        final int label;
+        final float min, max;
+        final int steps;
+        final int decimals;
+        final boolean logScale; // trail decay only really matters near 1.0
+
+        ParamSpec(int label, float min, float max, int steps, int decimals, boolean logScale) {
+            this.label = label;
+            this.min = min;
+            this.max = max;
+            this.steps = steps;
+            this.decimals = decimals;
+            this.logScale = logScale;
+        }
+
+        float value(int progress) {
+            final float fraction = progress / (float) steps;
+            if (logScale) {
+                final double lo = Math.log1p(-min);
+                final double hi = Math.log1p(-max);
+                return (float) (1.0 - Math.exp(lo + (hi - lo) * fraction));
+            }
+            return min + (max - min) * fraction;
+        }
+
+        int progress(float value) {
+            final double fraction;
+            if (logScale) {
+                final double lo = Math.log1p(-min);
+                final double hi = Math.log1p(-max);
+                fraction = (Math.log1p(-Math.min(value, 0.999999)) - lo) / (hi - lo);
+            } else {
+                fraction = (value - min) / (max - min);
+            }
+            return Math.round((float) (Math.max(0.0, Math.min(fraction, 1.0)) * steps));
+        }
+
+        String text(float value) {
+            return String.format(Locale.getDefault(), "%." + decimals + "f", value);
+        }
+    }
+
+    private static final ParamSpec[] PARAMS = {
+            new ParamSpec(R.string.param_line_width, 0.25f, 4.0f, 75, 2, false),
+            new ParamSpec(R.string.param_opacity, 0.0f, 2.0f, 100, 2, false),
+            new ParamSpec(R.string.param_trail_decay, 0.95f, 0.9999f, 500, 4, true),
+            new ParamSpec(R.string.param_wind_speed, 0.0f, 0.5f, 100, 3, false),
+    };
+
+    private final ColorSwatchView[] swatches = new ColorSwatchView[CustomTheme.COLOR_COUNT];
+    private final Runnable customThemeListener = this::refreshColors;
+
+    private Spinner presetSpinner;
+    private View presetDelete;
+
+    public CustomThemeView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+        setOrientation(VERTICAL);
+        inflate(context, R.layout.custom_theme, this); // so the children are always ours
+
+        presetSpinner = findViewById(R.id.preset_spinner);
+        presetDelete = findViewById(R.id.preset_delete);
+
+        final LinearLayout swatchList = findViewById(R.id.swatch_list);
+        final LayoutInflater inflater = LayoutInflater.from(context);
+        for (int i = 0; i < CustomTheme.COLOR_COUNT; i++) {
+            final int color = i;
+            final View item = inflater.inflate(R.layout.custom_swatch, swatchList, false);
+            final String label = getContext().getString(COLOR_LABELS[color]);
+            swatches[color] = item.findViewById(R.id.swatch_color);
+            ((TextView) item.findViewById(R.id.swatch_label)).setText(label);
+            item.setContentDescription(label);
+            item.setOnClickListener(v -> pickColor(color, label));
+            swatchList.addView(item);
+        }
+
+        final View advanced = inflater.inflate(R.layout.custom_advanced, swatchList, false);
+        advanced.setOnClickListener(v -> showAdvancedDialog());
+        swatchList.addView(advanced);
+
+        presetSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                final Object item = parent.getItemAtPosition(position);
+                final String name = item == null ? "" : item.toString();
+                // ignore the placeholder and the selection we just applied
+                // (setSelection notifies again when the spinner is laid out)
+                if (!name.isEmpty() && !name.equals(CustomTheme.presetName(getContext()))
+                        && CustomTheme.preset(getContext(), name) != null) {
+                    CustomTheme.loadPreset(getContext(), name);
+                    refresh();
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        findViewById(R.id.preset_save).setOnClickListener(v -> showSavePresetDialog());
+        presetDelete.setOnClickListener(v -> showDeletePresetDialog());
+    }
+
+    @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        CustomTheme.addListener(customThemeListener); // the colors also change from the dialogs
+        refreshColors();
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        CustomTheme.removeListener(customThemeListener);
+    }
+
+    public void setActive(boolean active) {
+        setVisibility(active ? VISIBLE : GONE);
+        if (active) {
+            refresh();
+        }
+    }
+
+    public void refresh() {
+        refreshColors();
+        refreshPresets();
+    }
+
+    private void refreshColors() {
+        final int[] colors = CustomTheme.colors(getContext());
+        for (int i = 0; i < swatches.length; i++) {
+            swatches[i].setColor(colors[i]);
+        }
+    }
+
+    private void refreshPresets() {
+        final List<CustomTheme.Preset> presets = CustomTheme.presets(getContext());
+        final String selected = CustomTheme.presetName(getContext());
+        final List<String> items = new ArrayList<>();
+        if (selected.isEmpty()) {
+            items.add(getContext().getString(presets.isEmpty() ? R.string.preset_none : R.string.preset_unsaved));
+        }
+        for (final CustomTheme.Preset preset : presets) {
+            items.add(preset.name);
+        }
+
+        final ArrayAdapter<String> adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        presetSpinner.setAdapter(adapter);
+        presetSpinner.setSelection(Math.max(items.indexOf(selected), 0));
+        presetDelete.setEnabled(!selected.isEmpty());
+    }
+
+    private void updatePresetSelection() {
+        final String name = CustomTheme.presetName(getContext());
+        if (!name.isEmpty()) {
+            final CustomTheme.Preset preset = CustomTheme.preset(getContext(), name);
+            if (preset == null || !preset.matches(getContext())) {
+                CustomTheme.setPresetName(getContext(), "");
+            }
+        }
+        refreshPresets();
+    }
+
+    private void pickColor(int color, String label) {
+        final int initial = CustomTheme.color(getContext(), color);
+        ColorPickerDialog.show(getContext(), label, initial, CustomTheme.hasAlpha(color),
+                picked -> CustomTheme.setColor(getContext(), color, picked, false), // live preview
+                picked -> {
+                    CustomTheme.setColor(getContext(), color, picked, true);
+                    updatePresetSelection();
+                });
+    }
+
+    private void showAdvancedDialog() {
+        final float[] initial = CustomTheme.params(getContext());
+        final SeekBar[] sliders = new SeekBar[CustomTheme.PARAM_COUNT];
+        final TextView[] values = new TextView[CustomTheme.PARAM_COUNT];
+
+        final LayoutInflater inflater = LayoutInflater.from(getContext());
+        final LinearLayout container = (LinearLayout) inflater.inflate(R.layout.dialog_advanced, null);
+
+        final View title = inflater.inflate(R.layout.dialog_advanced_title, null);
+        title.findViewById(R.id.param_restart).setOnClickListener(v -> WindyWallpaperRenderer.restartAll());
+
+        for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
+            final int param = i;
+            final View row = inflater.inflate(R.layout.custom_param, container, false);
+            final ParamSpec spec = PARAMS[param];
+            ((TextView) row.findViewById(R.id.param_label)).setText(spec.label);
+            values[param] = row.findViewById(R.id.param_value);
+            sliders[param] = row.findViewById(R.id.param_slider);
+            sliders[param].setMax(spec.steps);
+            sliders[param].setProgress(spec.progress(initial[param]));
+            values[param].setText(spec.text(initial[param]));
+            sliders[param].setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                @Override
+                public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                    final float value = spec.value(progress);
+                    values[param].setText(spec.text(value));
+                    if (fromUser) {
+                        CustomTheme.setParam(getContext(), param, value, false); // live preview
+                    }
+                }
+
+                @Override
+                public void onStartTrackingTouch(SeekBar seekBar) {
+                }
+
+                @Override
+                public void onStopTrackingTouch(SeekBar seekBar) {
+                }
+            });
+            container.addView(row);
+        }
+
+        final boolean[] accepted = {false};
+        final AlertDialog dialog = new AlertDialog.Builder(getContext())
+                .setCustomTitle(title)
+                .setView(container)
+                .setPositiveButton(R.string.save, (d, which) -> {
+                    accepted[0] = true;
+                    CustomTheme.persist(getContext());
+                    updatePresetSelection();
+                })
+                .setNeutralButton(R.string.reset, null) // set below so it doesn't dismiss it
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener(d -> {
+                    if (!accepted[0]) {
+                        CustomTheme.setParams(getContext(), initial, false); // undo the live preview
+                    }
+                })
+                .create();
+
+        final Window window = dialog.getWindow();
+        if (window != null) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); // don't dim the wallpaper being previewed
+        }
+        dialog.show();
+        dialog.getButton(DialogInterface.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            final float[] defaults = CustomTheme.themeParams(Themes.CUSTOM);
+            CustomTheme.setParams(getContext(), defaults, false);
+            for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
+                sliders[i].setProgress(PARAMS[i].progress(defaults[i]));
+            }
+        });
+    }
+
+    private void showSavePresetDialog() {
+        final EditText input = new EditText(getContext());
+        input.setSingleLine();
+        input.setHint(R.string.preset_name);
+        final String current = CustomTheme.presetName(getContext());
+        input.setText(current.isEmpty()
+                ? getContext().getString(R.string.preset_default_name, CustomTheme.presets(getContext()).size() + 1)
+                : current);
+        input.selectAll();
+
+        final int padding = Math.round(20 * getResources().getDisplayMetrics().density);
+        final LinearLayout container = new LinearLayout(getContext());
+        container.setPadding(padding, padding / 2, padding, 0);
+        container.addView(input, new LinearLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+
+        new AlertDialog.Builder(getContext())
+                .setTitle(R.string.save_preset_title)
+                .setView(container)
+                .setPositiveButton(R.string.save, (dialog, which) -> {
+                    final String name = CustomTheme.normalizeName(input.getText().toString());
+                    if (!name.isEmpty()) {
+                        CustomTheme.savePreset(getContext(), name);
+                        refreshPresets();
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
+    private void showDeletePresetDialog() {
+        final String name = CustomTheme.presetName(getContext());
+        if (name.isEmpty()) {
+            return;
+        }
+        new AlertDialog.Builder(getContext())
+                .setTitle(R.string.delete_preset)
+                .setMessage(getContext().getString(R.string.delete_preset_message, name))
+                .setPositiveButton(R.string.delete, (dialog, which) -> {
+                    CustomTheme.deletePreset(getContext(), name);
+                    refreshPresets();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+}

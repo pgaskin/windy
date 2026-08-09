@@ -45,7 +45,13 @@
 
     </FrameLayout>
 
-    <include layout="@layout/custom_panel" />
+    <net.pgaskin.windy.CustomThemeView
+        android:id="@+id/custom_theme"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/nav_background"
+        android:paddingTop="6dp"
+        android:visibility="gone" />
 
     <HorizontalScrollView
         android:id="@+id/theme_scroll"
