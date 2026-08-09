@@ -23,7 +23,7 @@ public final class Prefs {
     public static final String KEY_CUSTOM_COLORS = "custom_colors"; // current
     public static final String KEY_CUSTOM_PRESET = "custom_preset"; // if unmodified
     public static final String KEY_CUSTOM_PRESETS = "custom_presets"; // saved
-    public static final String KEY_CUSTOM_PARAM_PREFIX = "custom_"; // + the param name
+    public static final String KEY_CUSTOM_PARAM_PREFIX = "custom_param_"; // + the param name
 
     private static final String KEY_THEME_LEGACY = "theme"; // index into Themes.ALL
 
