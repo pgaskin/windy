@@ -160,7 +160,7 @@ public class MainActivity extends Activity {
                 }
             }
         }
-        return Themes.get(Prefs.themeIndex(this)).index;
+        return Prefs.themeIndex(this);
     }
 
     private void buildThemeCards() {

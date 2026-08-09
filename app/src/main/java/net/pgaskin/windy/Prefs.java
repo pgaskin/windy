@@ -18,11 +18,13 @@ public final class Prefs {
     public static final String KEY_DATA_CONSENT = "data_consent";
     public static final String KEY_MAX_FPS = "max_fps";
     public static final String KEY_STATIC_MODE = "static_mode";
-    public static final String KEY_THEME = "theme";
+    public static final String KEY_THEME = "theme_service"; // class name
     public static final String KEY_GPU_MODEL = "gpu_model";
     public static final String KEY_CUSTOM_COLORS = "custom_colors"; // current
     public static final String KEY_CUSTOM_PRESET = "custom_preset"; // if unmodified
     public static final String KEY_CUSTOM_PRESETS = "custom_presets"; // saved
+
+    private static final String KEY_THEME_LEGACY = "theme"; // index into Themes.ALL
 
     public static final long INTERVAL_NEVER = 0;
     public static final long INTERVAL_MANUAL = -1;
@@ -39,7 +41,9 @@ public final class Prefs {
         return context.createDeviceProtectedStorageContext().getSharedPreferences(STORE, Context.MODE_PRIVATE);
     }
 
-    /** Location refresh interval in seconds, or 0 if manual. */
+    /**
+     * Location refresh interval in seconds, or 0 if manual.
+     */
     public static long locationInterval(Context context) {
         return interval(context, KEY_LOCATION_INTERVAL, DEFAULT_LOCATION_INTERVAL);
     }
@@ -82,7 +86,9 @@ public final class Prefs {
         get(context).edit().putBoolean(KEY_DATA_CONSENT, consent).apply();
     }
 
-    /** Installations from before the consent dialog existed imply consent. */
+    /**
+     * Installations from before the consent dialog existed imply consent.
+     */
     private static void migrateDataConsent(Context context) {
         final SharedPreferences prefs = get(context);
         if (prefs.contains(KEY_DATA_CONSENT)) {
@@ -113,15 +119,41 @@ public final class Prefs {
         return prefs.getBoolean(KEY_STATIC_MODE, false);
     }
 
+    /**
+     * Index of the last selected theme, or 0.
+     */
     public static int themeIndex(Context context) {
-        return get(context).getInt(KEY_THEME, 0);
+        final SharedPreferences prefs = get(context);
+        migrateTheme(prefs);
+        final String service = prefs.getString(KEY_THEME, null);
+        if (service != null) {
+            for (final Themes.Entry theme : Themes.ALL) {
+                if (theme.service.equals(service)) {
+                    return theme.index;
+                }
+            }
+            Log.w(TAG, "ignoring unknown saved theme " + service);
+        }
+        return 0;
     }
 
     public static void setThemeIndex(Context context, int index) {
-        get(context).edit().putInt(KEY_THEME, index).apply();
+        get(context).edit().putString(KEY_THEME, Themes.get(index).service).apply();
     }
 
-    /** The GPU last used by the renderer, or null if it hasn't run yet. */
+    private static void migrateTheme(SharedPreferences prefs) {
+        if (prefs.contains(KEY_THEME) || !prefs.contains(KEY_THEME_LEGACY)) {
+            return;
+        }
+        prefs.edit()
+                .putString(KEY_THEME, Themes.get(prefs.getInt(KEY_THEME_LEGACY, 0)).service)
+                .remove(KEY_THEME_LEGACY)
+                .apply();
+    }
+
+    /**
+     * The GPU last used by the renderer, or null if it hasn't run yet.
+     */
     public static String gpuModel(Context context) {
         final String model = get(context).getString(KEY_GPU_MODEL, null);
         return model == null || model.isEmpty() ? null : model;
