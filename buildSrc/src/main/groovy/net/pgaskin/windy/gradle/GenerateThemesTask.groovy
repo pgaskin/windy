@@ -18,6 +18,8 @@ abstract class GenerateThemesTask extends DefaultTask {
     static final String PKG = "net.pgaskin.windy"
     static final String OUTER = "WindyWallpaperService"
     static final String BASE = "WindyWallpaperServiceBase"
+    static final String THEMES = "Themes"
+    static final String SETTINGS = "SettingsActivity"
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
@@ -41,6 +43,7 @@ abstract class GenerateThemesTask extends DefaultTask {
         def pkgDir = new File(javaRoot, PKG.replace('.', '/'))
         pkgDir.mkdirs()
         new File(pkgDir, "${OUTER}.java").setText(renderJava(themes), "UTF-8")
+        new File(pkgDir, "${THEMES}.java").setText(renderThemesJava(themes), "UTF-8")
 
         def resRoot = resOutputDir.get().asFile
         resRoot.deleteDir()
@@ -71,11 +74,15 @@ abstract class GenerateThemesTask extends DefaultTask {
             if (!label.find()) {
                 throw new GradleException("Theme `Theme::${ident}` is missing `// Label` comment in config.rs")
             }
+            def full = label.group(1)
+            def sep = full.lastIndexOf(", ")
             themes << [
                 index    : themes.size(),
                 className: toPascal(ident),
                 resName  : "windy_" + ident.toLowerCase().replace("_", ""),
-                label    : label.group(1),
+                label    : full,
+                // just the theme name, i.e. "Windy, Deep blue" -> "Deep blue"
+                name     : sep < 0 ? full : full.substring(sep + 2),
             ]
         }
         if (themes.isEmpty()) {
@@ -102,11 +109,56 @@ abstract class GenerateThemesTask extends DefaultTask {
         sb.toString()
     }
 
+    static String renderThemesJava(List<Map> themes) {
+        def sb = new StringBuilder()
+        sb << "package ${PKG};\n\n"
+        sb << "/** Wallpaper themes, generated from core/src/config.rs; do not edit. */\n"
+        sb << "public final class ${THEMES} {\n"
+        sb << "    public static final class Entry {\n"
+        sb << "        /** Index shared with the native renderer. */\n"
+        sb << "        public final int index;\n"
+        sb << "        /** Theme name, e.g. \"Deep blue\". */\n"
+        sb << "        public final String name;\n"
+        sb << "        /** Wallpaper picker label, e.g. \"Windy, Deep blue\". */\n"
+        sb << "        public final String label;\n"
+        sb << "        /** Pre-rendered preview image. */\n"
+        sb << "        public final int thumbnail;\n"
+        sb << "        /** Class name of the theme's wallpaper service. */\n"
+        sb << "        public final String service;\n"
+        sb << "\n"
+        sb << "        private Entry(int index, String name, String label, int thumbnail, String service) {\n"
+        sb << "            this.index = index;\n"
+        sb << "            this.name = name;\n"
+        sb << "            this.label = label;\n"
+        sb << "            this.thumbnail = thumbnail;\n"
+        sb << "            this.service = service;\n"
+        sb << "        }\n"
+        sb << "    }\n\n"
+        sb << "    public static final Entry[] ALL = {\n"
+        themes.each { t ->
+            sb << "        new Entry(${t.index}, ${javaStr(t.name)}, ${javaStr(t.label)}, R.drawable.${t.resName}, ${javaStr(PKG + "." + OUTER + "\$" + t.className)}),\n"
+        }
+        sb << "    };\n\n"
+        sb << "    /** Returns a theme by index, clamped to a valid one. */\n"
+        sb << "    public static Entry get(int index) {\n"
+        sb << "        return ALL[Math.max(0, Math.min(index, ALL.length - 1))];\n"
+        sb << "    }\n\n"
+        sb << "    private ${THEMES}() {\n"
+        sb << "    }\n"
+        sb << "}\n"
+        sb.toString()
+    }
+
+    static String javaStr(String s) {
+        '"' + s.replace('\\', '\\\\').replace('"', '\\"') + '"'
+    }
+
     static String renderWallpaperXml(Map t) {
         """\
 <?xml version="1.0" encoding="utf-8"?>
 <wallpaper xmlns:android="http://schemas.android.com/apk/res/android"
     android:thumbnail="@drawable/${t.resName}"
+    android:settingsActivity="${PKG}.${SETTINGS}"
     android:supportsMultipleDisplays="true" />
 """
     }

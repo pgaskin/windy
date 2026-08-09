@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-FileCopyrightText: 2023-2026 Patrick Gaskin
+    SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <net.pgaskin.windy.WindyWallpaperView
+            android:id="@+id/preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/scrim_top"
+            android:title="@string/app_name_short"
+            android:titleTextColor="@android:color/white" />
+
+        <Button
+            android:id="@+id/set_wallpaper"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/pill"
+            android:minHeight="44dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:text="@string/set_as_wallpaper"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="15sp" />
+
+    </FrameLayout>
+
+    <HorizontalScrollView
+        android:id="@+id/theme_scroll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/nav_background"
+        android:paddingTop="10dp"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/theme_list"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp" />
+
+    </HorizontalScrollView>
+
+</LinearLayout>

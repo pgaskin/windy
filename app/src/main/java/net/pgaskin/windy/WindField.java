@@ -42,10 +42,14 @@ public class WindField {
         synchronized (currentBitmapLock) {
             if (currentBitmap == null) {
                 Log.i(TAG, "loading initial wind field bitmap");
-                try (final InputStream is = Files.newInputStream(windCacheFile(context, false).toPath())) {
-                    currentBitmap = BitmapFactory.decodeStream(is);
-                } catch (Exception ex) {
-                    // ignored; fall back to the embedded asset
+                if (Prefs.dataInterval(context) != Prefs.INTERVAL_NEVER) {
+                    try (final InputStream is = Files.newInputStream(windCacheFile(context, false).toPath())) {
+                        currentBitmap = BitmapFactory.decodeStream(is);
+                    } catch (Exception ex) {
+                        // ignored; fall back to the embedded asset
+                    }
+                } else {
+                    Log.i(TAG, "wind field updates are disabled, using the built-in field");
                 }
                 if (currentBitmap == null) {
                     try (final InputStream is = context.getAssets().open("windy/wind_cache.png")) {
@@ -70,6 +74,16 @@ public class WindField {
         final byte[] rgba = new byte[width * height * 4];
         rgbaBitmap.copyPixelsToBuffer(ByteBuffer.wrap(rgba));
         return new Snapshot(rgba, width, height, seq);
+    }
+
+    public static void invalidate() {
+        synchronized (currentBitmapLock) {
+            if (currentBitmap != null) {
+                currentBitmap.recycle();
+                currentBitmap = null;
+            }
+            currentSeq.addAndGet(1);
+        }
     }
 
     private static File windCacheFile(Context context, boolean temp) {

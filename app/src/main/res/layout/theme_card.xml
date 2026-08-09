@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-FileCopyrightText: 2023-2026 Patrick Gaskin
+    SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="?android:attr/selectableItemBackground"
+    android:clickable="true"
+    android:focusable="true"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:paddingStart="4dp"
+    android:paddingEnd="4dp"
+    android:paddingBottom="10dp">
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/theme_card_frame"
+        android:padding="3dp">
+
+        <ImageView
+            android:id="@+id/theme_image"
+            android:layout_width="72dp"
+            android:layout_height="124dp"
+            android:background="@drawable/theme_card_thumb"
+            android:contentDescription="@null"
+            android:scaleType="centerCrop" />
+
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/theme_name"
+        android:layout_width="86dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:gravity="center_horizontal"
+        android:maxLines="1"
+        android:textColor="?android:attr/textColorPrimary"
+        android:textSize="12sp" />
+
+</LinearLayout>

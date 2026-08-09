@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-FileCopyrightText: 2026 Patrick Gaskin
+    SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<resources>
+    <string name="app_name">Windy Live Wallpaper</string>
+    <string name="app_name_short">Windy</string>
+
+    <string name="back">Back</string>
+    <string name="settings">Settings</string>
+    <string name="set_as_wallpaper">Set as wallpaper</string>
+    <string name="set_wallpaper_failed">Couldn\'t open the live wallpaper picker</string>
+
+    <string name="location">Location</string>
+    <string name="location_unset">Not set</string>
+    <string name="location_manual">Manual</string>
+    <string name="location_hint">Longitude, latitude</string>
+    <string name="location_invalid">Enter a longitude and latitude</string>
+    <string name="location_unavailable">Couldn\'t determine the current location</string>
+    <string name="location_permission_denied">Location permission is required</string>
+    <string name="use_current_location">Use current location</string>
+    <string name="location_interval">Location update interval</string>
+    <string name="location_interval_summary">Interval to refresh the current position at (%s)</string>
+    <string name="background_location">Allow location in the background</string>
+    <string name="background_location_summary">Required to keep the position up to date while the wallpaper is running</string>
+    <string name="location_privacy_note">Location information is processed locally and not sent to any remote servers.</string>
+
+    <string name="data">Data</string>
+    <string name="update_now">Update now</string>
+    <string name="show_texture">Show current texture</string>
+    <string name="show_texture_summary">View the raw wind texture</string>
+    <string name="show_texture_failed">Couldn\'t load the wind texture</string>
+    <string name="updating">Updating…</string>
+    <string name="update_succeeded">Wind data updated</string>
+    <string name="update_failed">Wind data update failed</string>
+    <string name="updated_never">Never updated</string>
+    <string name="updated_at">Updated %1$s</string>
+    <string name="updated_source">%1$s (%2$s)</string>
+    <string name="data_builtin">Using built-in data since updates are disabled</string>
+    <string name="data_interval">Data update interval</string>
+    <string name="data_interval_summary">Interval to refresh the wind data at (%s)</string>
+    <string name="data_url">Wind texture URL</string>
+    <string name="data_url_invalid">Enter a valid https URL</string>
+    <string name="reset">Reset</string>
+</resources>

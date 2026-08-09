@@ -15,9 +15,13 @@ import android.os.Bundle;
 import android.util.Log;
 
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 public class LocationActivity extends Activity {
     private static final String TAG = "LocationActivity";
+
+    private static final AtomicInteger currentSeq = new AtomicInteger();
 
     boolean requestedInitial = false;
     boolean doneForeground = false;
@@ -140,6 +144,9 @@ public class LocationActivity extends Activity {
     }
 
     private static float[] updateLocation(Context context, boolean requestIfMissing, boolean isForeground) {
+        if (Prefs.locationInterval(context) == 0) {
+            return LocationActivity.savedLocation(context); // manual
+        }
         if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
                 || (!isForeground && context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) != PackageManager.PERMISSION_GRANTED)) {
             if (requestIfMissing && !LocationActivity.getLocationFlowComplete(context)) {
@@ -150,27 +157,81 @@ public class LocationActivity extends Activity {
             }
         } else {
             final LocationManager mgr = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-            final Location loc = mgr.getLastKnownLocation("passive");
+            final Location loc = mgr.getLastKnownLocation(LocationManager.PASSIVE_PROVIDER);
             if (loc != null) {
-                final SharedPreferences prefs = LocationActivity.getPreferences(context);
-                final float lat = (float) Math.round(loc.getLatitude() * 10.0f) / 10.0f;
-                final float lng = (float) Math.round(loc.getLongitude() * 10.0f) / 10.0f;
+                final float lng = LocationActivity.round(loc.getLongitude());
+                final float lat = LocationActivity.round(loc.getLatitude());
                 Log.i(TAG, "updated user location lng=" + lng + " lat=" + lat);
-                prefs.edit().putFloat("last_lng", lng).putFloat("last_lat", lat).apply();
+                LocationActivity.saveLocation(context, lng, lat);
                 return new float[]{lng, lat};
             } else {
                 Log.w(TAG, "failed to update user location");
             }
         }
-        final SharedPreferences prefs = LocationActivity.getPreferences(context);
-        final float lng = prefs.getFloat("last_lng", 0.0f);
-        final float lat = prefs.getFloat("last_lat", 0.0f);
-        if (lng != 0.0f || lat != 0.0f) {
-            Log.i(TAG, "using last known location lng=" + lng + " lat=" + lat);
-            return new float[]{lng, lat};
+        final float[] stored = LocationActivity.savedLocation(context);
+        if (stored != null) {
+            Log.i(TAG, "using last known location lng=" + stored[0] + " lat=" + stored[1]);
+            return stored;
         }
         Log.w(TAG, "no location known");
         return null;
+    }
+
+    /** Returns the saved location as {@code {lng, lat}}, or null if unknown. */
+    public static float[] savedLocation(Context context) {
+        final SharedPreferences prefs = LocationActivity.getPreferences(context);
+        final float lng = prefs.getFloat("last_lng", 0.0f);
+        final float lat = prefs.getFloat("last_lat", 0.0f);
+        return lng != 0.0f || lat != 0.0f ? new float[]{lng, lat} : null;
+    }
+
+    /** Returns the time the stored location was last updated, or 0 if never. */
+    public static long lastUpdated(Context context) {
+        return LocationActivity.getPreferences(context).getLong("last_updated", 0);
+    }
+
+    /** Updates the saved location. */
+    public static void saveLocation(Context context, float lng, float lat) {
+        LocationActivity.getPreferences(context).edit()
+                .putFloat("last_lng", lng)
+                .putFloat("last_lat", lat)
+                .putLong("last_updated", System.currentTimeMillis())
+                .apply();
+        LocationActivity.currentSeq.incrementAndGet();
+    }
+
+    /** Updates and saves the current location, blocking. */
+    public static void requestCurrentLocation(Context context, Consumer<float[]> callback) {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "not requesting current location without permission");
+            callback.accept(null);
+            return;
+        }
+        final LocationManager mgr = context.getSystemService(LocationManager.class);
+        final String provider = mgr.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
+                ? LocationManager.NETWORK_PROVIDER
+                : LocationManager.PASSIVE_PROVIDER;
+        Log.i(TAG, "requesting current location from provider " + provider);
+        mgr.getCurrentLocation(provider, null, context.getMainExecutor(), loc -> {
+            if (loc == null) {
+                Log.w(TAG, "failed to get current location");
+                callback.accept(null);
+                return;
+            }
+            final float lng = LocationActivity.round(loc.getLongitude());
+            final float lat = LocationActivity.round(loc.getLatitude());
+            Log.i(TAG, "got current location lng=" + lng + " lat=" + lat);
+            LocationActivity.saveLocation(context, lng, lat);
+            callback.accept(new float[]{lng, lat});
+        });
+    }
+
+    public static int currentSeq() {
+        return LocationActivity.currentSeq.get();
+    }
+
+    private static float round(double deg) {
+        return (float) Math.round(deg * 10.0) / 10.0f;
     }
 
     private static final AtomicBoolean locationFlowCompleteCached = new AtomicBoolean();

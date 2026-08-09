@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    SPDX-FileCopyrightText: 2026 Patrick Gaskin
+    SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<resources>
+    <string-array name="location_interval_entries">
+        <item>Never</item>
+        <item>15 minutes</item>
+        <item>30 minutes</item>
+        <item>1 hour</item>
+        <item>3 hours</item>
+        <item>6 hours</item>
+        <item>12 hours</item>
+        <item>24 hours</item>
+    </string-array>
+
+    <string-array name="location_interval_values">
+        <item>0</item>
+        <item>900</item>
+        <item>1800</item>
+        <item>3600</item>
+        <item>10800</item>
+        <item>21600</item>
+        <item>43200</item>
+        <item>86400</item>
+    </string-array>
+
+    <string-array name="data_interval_entries">
+        <item>Never</item>
+        <item>Manual</item>
+        <item>15 minutes</item>
+        <item>30 minutes</item>
+        <item>1 hour</item>
+        <item>3 hours</item>
+        <item>6 hours</item>
+        <item>12 hours</item>
+        <item>24 hours</item>
+    </string-array>
+
+    <string-array name="data_interval_values">
+        <item>0</item>
+        <item>-1</item>
+        <item>900</item>
+        <item>1800</item>
+        <item>3600</item>
+        <item>10800</item>
+        <item>21600</item>
+        <item>43200</item>
+        <item>86400</item>
+    </string-array>
+</resources>

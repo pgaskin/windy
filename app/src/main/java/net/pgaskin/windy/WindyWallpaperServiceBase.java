@@ -47,6 +47,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         super.onCreate();
         WindFieldUpdateService.scheduleStartup(this);
         WindFieldUpdateService.schedulePeriodic(this);
+        LocationUpdateService.schedule(this);
         registerReceiver(powerSaveReceiver, new IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED));
     }
 
@@ -128,6 +129,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
         private boolean locationFlowPending = !LocationActivity.getLocationFlowCompleteCached();
         private float[] lastLocation;
         private int windFieldSeq = -1;
+        private int locationSeq = -1;
 
         RenderThread(SurfaceHolder holder) {
             super("WindyRender");
@@ -174,7 +176,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
                 renderer = new NativeRenderer(holder.getSurface(), themeIndex(), dpiScale);
 
                 applyWindField(renderer);
-                applyLocation(renderer, true, false);
+                applyLocation(renderer, true);
 
                 while (running) {
                     synchronized (this) {
@@ -193,8 +195,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
                         }
                     }
 
-                    final boolean updatedWindField = pollWindField(renderer);
-                    applyLocation(renderer, updatedWindField, !updatedWindField);
+                    applyLocation(renderer, pollWindField(renderer));
 
                     boolean easing = false;
                     synchronized (this) {
@@ -238,19 +239,21 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
             windFieldSeq = snap.seq;
         }
 
-        private void applyLocation(NativeRenderer renderer, boolean requestIfMissing, boolean cachedOnly) {
+        private void applyLocation(NativeRenderer renderer, boolean refresh) {
             if (locationFlowPending && LocationActivity.getLocationFlowCompleteCached()) {
-                cachedOnly = false;
                 locationFlowPending = false;
+                refresh = true;
             }
-            if (!cachedOnly) {
-                final float[] loc = LocationActivity.updateLocation(WindyWallpaperServiceBase.this, requestIfMissing);
-                if (loc != null) {
-                    lastLocation = loc;
-                }
+            if (!refresh && LocationActivity.currentSeq() == locationSeq) {
+                return;
             }
-            if (lastLocation != null) {
-                renderer.setUserLocation(lastLocation[0], lastLocation[1]);
+            final float[] loc = refresh
+                    ? LocationActivity.updateLocation(WindyWallpaperServiceBase.this, true)
+                    : LocationActivity.savedLocation(WindyWallpaperServiceBase.this);
+            locationSeq = LocationActivity.currentSeq();
+            if (loc != null) {
+                lastLocation = loc;
+                renderer.setUserLocation(loc[0], loc[1]);
             }
         }
 
