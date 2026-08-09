@@ -198,6 +198,8 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
                         }
                     }
 
+                    final long frameStart = System.nanoTime();
+
                     applyLocation(renderer, pollWindField(renderer));
 
                     boolean easing = false;
@@ -217,7 +219,7 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
                     renderer.render();
 
                     final int fps = isPowerSaveMode.get() ? FPS_POWERSAVE : easing ? FPS_HIGH : FPS_NORMAL;
-                    sleepFrame(1000L / Prefs.limitFps(prefs, fps));
+                    awaitFrame(frameStart, Prefs.limitFps(prefs, fps));
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "render thread failed", t);
@@ -260,10 +262,13 @@ public abstract class WindyWallpaperServiceBase extends WallpaperService {
             }
         }
 
-        private void sleepFrame(long millis) {
-            try {
-                Thread.sleep(Math.max(millis, 1L));
-            } catch (InterruptedException ignored) {
+        private synchronized void awaitFrame(long frameStart, int fps) {
+            final long remaining = 1000000000L / fps - (System.nanoTime() - frameStart);
+            if (running && remaining > 0) {
+                try {
+                    wait(remaining / 1000000L, (int) (remaining % 1000000L));
+                } catch (InterruptedException ignored) {
+                }
             }
         }
     }

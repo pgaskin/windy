@@ -91,6 +91,16 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
             notifyAll();
         }
 
+        private synchronized void awaitFrame(long frameStart, int fps) {
+            final long remaining = 1000000000L / fps - (System.nanoTime() - frameStart);
+            if (running && remaining > 0) {
+                try {
+                    wait(remaining / 1000000L, (int) (remaining % 1000000L));
+                } catch (InterruptedException ignored) {
+                }
+            }
+        }
+
         void shutdown() {
             synchronized (this) {
                 running = false;
@@ -131,6 +141,8 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
                         resized = false;
                     }
 
+                    final long frameStart = System.nanoTime();
+
                     if (renderer == null || rendererTheme != theme) {
                         if (renderer != null) {
                             renderer.close();
@@ -157,10 +169,7 @@ public class WindyWallpaperView extends SurfaceView implements SurfaceHolder.Cal
 
                     renderer.render();
 
-                    try {
-                        Thread.sleep(1000L / Prefs.limitFps(prefs, FPS));
-                    } catch (InterruptedException ignored) {
-                    }
+                    awaitFrame(frameStart, Prefs.limitFps(prefs, FPS));
                 }
             } catch (Throwable t) {
                 Log.e(TAG, "preview render thread failed", t);
