@@ -1,0 +1,1 @@
+* Use GitHub Actions for releases.

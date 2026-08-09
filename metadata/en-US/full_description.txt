@@ -1,0 +1,12 @@
+Android live wallpaper visualizing local wind patterns, inspired by the Pixel 2017 live wallpaper.
+
+* Correct rendering on newer devices (the original shaders don't work at all).
+* Updated wind data (the official data was last updated in 2019).
+* Lower memory and CPU usage.
+* More color schemes.
+* Better location handling.
+* Modern render pipeline using WebGPU.
+* All code is written from scratch.
+* Other fixes.
+
+The wind texture is generated from the NOAA GFS 0.25° ANL dataset (updated every 6 hours) using the wind vector values (UGRD, VGRD) at 850 mb elevation.

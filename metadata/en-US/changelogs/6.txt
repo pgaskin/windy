@@ -1,0 +1,2 @@
+* Apply wind field texture filter server-side.
+* Fix blur only applying vertically.

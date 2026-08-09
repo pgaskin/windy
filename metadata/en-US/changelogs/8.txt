@@ -1,0 +1,9 @@
+* Rewrote everything in rust.
+* Completely new pipeline from scratch.
+* Much cleaner code.
+* Use compute shaders instead of ping-pong texture buffers.
+* Fix rendering issues.
+* Fix rendering inconsistencies at different frame rates.
+* Fix color issues on some devices.
+* Fix inconsistent rendering on high-dpi displays.
+* Use WebGPU (via wgpu on Vulkan) instead of GLES (via GDX).
