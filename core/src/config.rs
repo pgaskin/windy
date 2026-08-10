@@ -96,8 +96,8 @@ impl Theme {
     };
     pub const DEEP_BLUE: Theme = Theme {
         name: "DeepBlue",
-        slow_wind_color: [0.2824, 0.3176, 0.4902, 0.7255],
-        fast_wind_color: [0.1725, 0.5843, 0.5843, 0.3412],
+        slow_wind_color: [0.2824, 0.3176, 0.4902, 0.1840],
+        fast_wind_color: [0.1725, 0.5843, 0.5843, 0.2750],
         bg_color1: [0.0510, 0.0275, 0.0275, 1.0000],
         bg_color2: [0.0039, 0.0039, 0.1255, 1.0000],
         wallpaper_color: rgb8(0x0D0707FF),
