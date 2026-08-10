@@ -4,5 +4,6 @@
     SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <resources>
-    <color name="nav_background">#FFF1F1F4</color>
+    <!-- translucent (the preview is edge-to-edge) -->
+    <color name="nav_background">#B3F1F1F4</color>
 </resources>

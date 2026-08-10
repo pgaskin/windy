@@ -169,7 +169,7 @@ public class MainActivity extends Activity {
             themeList.getChildAt(i).setSelected(i == index);
         }
         final boolean custom = index == Themes.CUSTOM;
-        customTheme.setActive(custom);
+        customTheme.setActive(custom, animate);
         customizeItem.setVisible(!custom); // it copies the shown theme into the custom one
         final View card = themeList.getChildAt(index);
         themeScroll.post(() -> {

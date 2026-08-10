@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package net.pgaskin.windy;
 
+import android.animation.Animator;
+import android.animation.AnimatorListenerAdapter;
+import android.animation.ValueAnimator;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
@@ -22,11 +27,16 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CustomThemeView extends LinearLayout {
+    private static final long SLIDE_DURATION = 150;
+
     private final ColorSwatchView[] swatches = new ColorSwatchView[CustomTheme.COLOR_COUNT];
     private final Runnable customThemeListener = this::refreshColors;
 
     private Spinner presetSpinner;
     private View presetDelete;
+
+    private boolean active; // not the visibility, which lags the slide out
+    private ValueAnimator slide;
 
     public CustomThemeView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -89,10 +99,64 @@ public class CustomThemeView extends LinearLayout {
         CustomTheme.removeListener(customThemeListener);
     }
 
-    public void setActive(boolean active) {
-        setVisibility(active ? VISIBLE : GONE);
+    public void setActive(boolean active, boolean animate) {
         if (active) {
             refresh();
+        }
+        if (this.active == active) {
+            return;
+        }
+        this.active = active;
+        if (slide != null) {
+            slide.cancel(); // leaves it at whatever height it got to
+            slide = null;
+        }
+        if (!animate) {
+            setVisibility(active ? VISIBLE : GONE);
+            setFixedHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
+            return;
+        }
+        setVisibility(VISIBLE); // it can only have a height while it's shown
+        slide = ValueAnimator.ofInt(getHeight(), active ? expandedHeight() : 0);
+        slide.setDuration(SLIDE_DURATION);
+        slide.setInterpolator(new DecelerateInterpolator());
+        slide.addUpdateListener(a -> setFixedHeight((int) a.getAnimatedValue()));
+        slide.addListener(new AnimatorListenerAdapter() {
+            private boolean cancelled;
+
+            @Override
+            public void onAnimationCancel(Animator a) {
+                cancelled = true;
+            }
+
+            @Override
+            public void onAnimationEnd(Animator a) {
+                if (cancelled) {
+                    return;
+                }
+                slide = null;
+                if (!CustomThemeView.this.active) {
+                    setVisibility(GONE);
+                }
+                setFixedHeight(ViewGroup.LayoutParams.WRAP_CONTENT);
+            }
+        });
+        slide.start();
+    }
+
+    private int expandedHeight() {
+        final View parent = (View) getParent();
+        final int width = parent.getWidth() - parent.getPaddingLeft() - parent.getPaddingRight();
+        measure(MeasureSpec.makeMeasureSpec(Math.max(width, 0), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+        return getMeasuredHeight();
+    }
+
+    private void setFixedHeight(int height) {
+        final ViewGroup.LayoutParams params = getLayoutParams();
+        if (params.height != height) {
+            params.height = height;
+            setLayoutParams(params); // requests a layout, which moves the button
         }
     }
 
