@@ -39,15 +39,23 @@ pub struct Config {
 }
 
 impl Config {
-    /// A [`Config`] using a named [`Theme`]'s colors with default dynamics.
+    /// A [`Config`] using a named [`Theme`]'s colors, and optionally additional
+    /// [`ThemeParams`].
     pub fn with_theme(theme: &Theme) -> Self {
-        Self {
+        let mut config = Self {
             slow_wind_color: theme.slow_wind_color,
             fast_wind_color: theme.fast_wind_color,
             bg_color1: theme.bg_color1,
             bg_color2: theme.bg_color2,
             ..Self::default()
+        };
+        if let Some(params) = theme.params {
+            config.line_half_width = params.line_half_width;
+            config.particle_opacity = params.particle_opacity;
+            config.alpha_decay = params.alpha_decay;
+            config.wind_speed = params.wind_speed;
         }
+        config
     }
 }
 
@@ -59,6 +67,16 @@ pub struct Theme {
     pub bg_color1: [f32; 4],
     pub bg_color2: [f32; 4],
     pub wallpaper_color: [f32; 3], // does not affect rendering, currently only for Android
+    pub params: Option<ThemeParams>, // param overrides, None uses the defaults
+}
+
+/// Additional [`Config`] params a theme can override.
+#[derive(Clone, Copy, Debug)]
+pub struct ThemeParams {
+    pub line_half_width: f32,
+    pub particle_opacity: f32,
+    pub alpha_decay: f32,
+    pub wind_speed: f32,
 }
 
 impl Theme {
@@ -69,6 +87,7 @@ impl Theme {
         bg_color1: rgba8(0x044866FF),
         bg_color2: rgba8(0x0085AAFF),
         wallpaper_color: rgb8(0x085173FF),
+        params: None,
     };
     pub const GREEN: Theme = Theme {
         name: "Green",
@@ -77,6 +96,7 @@ impl Theme {
         bg_color1: rgba8(0x044822FF),
         bg_color2: rgba8(0x008533FF),
         wallpaper_color: rgb8(0x085112FF),
+        params: None,
     };
     pub const BLUSH: Theme = Theme {
         name: "Blush",
@@ -85,6 +105,7 @@ impl Theme {
         bg_color1: rgba8(0x4078C8FF),
         bg_color2: rgba8(0xD9B0EAFF),
         wallpaper_color: rgb8(0x4A7CC9FF),
+        params: None,
     };
     pub const MIDNIGHT: Theme = Theme {
         name: "Midnight",
@@ -93,6 +114,7 @@ impl Theme {
         bg_color1: rgba8(0x000000AF),
         bg_color2: rgba8(0x464749FF),
         wallpaper_color: rgb8(0x101110FF),
+        params: None,
     };
     pub const DEEP_BLUE: Theme = Theme {
         name: "DeepBlue",
@@ -101,6 +123,7 @@ impl Theme {
         bg_color1: [0.0510, 0.0275, 0.0275, 1.0000],
         bg_color2: [0.0039, 0.0039, 0.1255, 1.0000],
         wallpaper_color: rgb8(0x0D0707FF),
+        params: None,
     };
     pub const MAROON: Theme = Theme {
         name: "Maroon",
@@ -109,6 +132,7 @@ impl Theme {
         bg_color1: rgba8(0x1A0909FF),
         bg_color2: rgba8(0x451717FF),
         wallpaper_color: rgb8(0x4F1A1AFF),
+        params: None,
     };
     pub const SEPIA: Theme = Theme {
         name: "Sepia",
@@ -117,6 +141,7 @@ impl Theme {
         bg_color1: rgba8(0xBDA682FF),
         bg_color2: rgba8(0xC49F64FF),
         wallpaper_color: rgb8(0xD87900FF),
+        params: None,
     };
     pub const SUNSET_WHIRLED: Theme = Theme {
         name: "SunsetWhirled",
@@ -125,6 +150,7 @@ impl Theme {
         bg_color1: rgba8(0xE58186DF),
         bg_color2: rgba8(0xF7B38DDF),
         wallpaper_color: rgb8(0xE88991FF),
+        params: None,
     };
     pub const TURQUOISE_WHIRLED: Theme = Theme {
         name: "TurquoiseWhirled",
@@ -133,6 +159,7 @@ impl Theme {
         bg_color1: rgba8(0x0093B9DF),
         bg_color2: rgba8(0xEFDD81DF),
         wallpaper_color: rgb8(0x0996B7FF),
+        params: None,
     };
     pub const SKY_BLUE_WHIRLED: Theme = Theme {
         name: "SkyBlueWhirled",
@@ -141,6 +168,7 @@ impl Theme {
         bg_color1: rgba8(0x75AAFAFF),
         bg_color2: rgba8(0xF4FF87FF),
         wallpaper_color: rgb8(0x7BAEF5FF),
+        params: None,
     };
     pub const SPARK_WHIRLED: Theme = Theme {
         name: "SparkWhirled",
@@ -149,6 +177,21 @@ impl Theme {
         bg_color1: rgba8(0x270D03FF),
         bg_color2: rgba8(0x031A27FF),
         wallpaper_color: rgb8(0x96241AFF),
+        params: None,
+    };
+    pub const MATRIX: Theme = Theme {
+        name: "Matrix",
+        slow_wind_color: [0.200, 0.384, 0.631, 0.137],
+        fast_wind_color: [0.016, 1.000, 0.000, 1.000],
+        bg_color1: rgba8(0x090E15FF),
+        bg_color2: rgba8(0x031D10FF),
+        wallpaper_color: rgb8(0x2B5542FF),
+        params: Some(ThemeParams {
+            line_half_width: 1.55,
+            particle_opacity: 0.66,
+            alpha_decay: 0.95,
+            wind_speed: 0.16,
+        }),
     };
 
     /// Initial custom colors for user-defined theme.
@@ -159,13 +202,26 @@ impl Theme {
         bg_color1: rgba8(0x1B2735FF),
         bg_color2: rgba8(0x3A5A80FF),
         wallpaper_color: rgb8(0x2B4055FF),
+        params: None,
     };
 
     // The order of this array defines the theme index shared by the renderer
-    // and the Android app. The trailing `// Label` comment on each entry is the
-    // wallpaper picker label; the app's Gradle theme codegen parses this array
-    // (see app/build.gradle) to generate the wallpaper services, res/xml
-    // configs, and manifest entries. Keep a `// Label` comment on every entry.
+    // and the Android app.
+    //
+    // The trailing `// Category, Name` comment on each entry is the wallpaper
+    // picker label, and is used for the wallpaper service names, the resources,
+    // and the manifest.
+    //
+    // The original Pixel wallpaper contained the "Windy, Blue", "Windy, Blush",
+    // "Windy, Midnight", "Your whirled, Sky blue", "Your whirled, Sunset", and
+    // "Your whirled, Turquoise" themes, which I've left more or less unchanged.
+    //
+    // It seems that the "Windy" ones are intended to be simple colors, and the
+    // "Your whirled" ones are a pun on "Your world" intended to be ones
+    // inspired by scenery.
+    //
+    // I added a "Otherwhirled" category for themes with more abstract color
+    // combinations and/or particle param tweaks.
     pub const ALL: &'static [Theme] = &[
         Theme::BLUE,              // Windy, Blue
         Theme::GREEN,             // Windy, Green
@@ -178,6 +234,7 @@ impl Theme {
         Theme::TURQUOISE_WHIRLED, // Your whirled, Turquoise
         Theme::SKY_BLUE_WHIRLED,  // Your whirled, Sky blue
         Theme::SPARK_WHIRLED,     // Your whirled, Spark
+        Theme::MATRIX,            // Otherwhirled, Matrix
         // custom should be last, even when adding new themes
         Theme::CUSTOM, // Windy, Custom
     ];

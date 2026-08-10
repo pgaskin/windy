@@ -207,7 +207,25 @@ impl ThemeEditor {
     }
 
     fn to_rust_snippet(&self) -> String {
-        let arr = |c: [f32; 4]| format!("[{:.4}, {:.4}, {:.4}, {:.4}]", c[0], c[1], c[2], c[3]);
+        let arr = |c: [f32; 4]| format!("[{:.3}, {:.3}, {:.3}, {:.3}]", c[0], c[1], c[2], c[3]);
+        let default = Config::default();
+        let params = if self.line_half_width == default.line_half_width
+            && self.particle_opacity == default.particle_opacity
+            && self.alpha_decay == default.alpha_decay
+            && self.wind_speed == default.wind_speed
+        {
+            "None".to_string()
+        } else {
+            format!(
+                "Some(ThemeParams {{\n        \
+                 line_half_width: {},\n        \
+                 particle_opacity: {},\n        \
+                 alpha_decay: {},\n        \
+                 wind_speed: {},\n    \
+                 }})",
+                self.line_half_width, self.particle_opacity, self.alpha_decay, self.wind_speed,
+            )
+        };
         format!(
             "pub const {}: Theme = Theme {{\n    \
              name: {:?},\n    \
@@ -215,7 +233,8 @@ impl ThemeEditor {
              fast_wind_color: {},\n    \
              bg_color1: {},\n    \
              bg_color2: {},\n    \
-             wallpaper_color: rgb8({:#010X}),\n}};",
+             wallpaper_color: rgb8({:#010X}),\n    \
+             params: {},\n}};",
             self.name.to_uppercase().replace([' ', '-'], "_"),
             self.name,
             arr(self.slow_wind_color),
@@ -223,6 +242,7 @@ impl ThemeEditor {
             arr(self.bg_color1),
             arr(self.bg_color2),
             pack_rgba(self.bg_color1) | 0xFF,
+            params,
         )
     }
 }

@@ -20,5 +20,5 @@ mod shaders {
     }
 }
 
-pub use config::{Config, Theme};
+pub use config::{Config, Theme, ThemeParams};
 pub use render::Renderer;
