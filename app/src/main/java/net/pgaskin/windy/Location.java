@@ -22,6 +22,7 @@ public final class Location {
     private static final String KEY_LAT = "last_lat";
     private static final String KEY_UPDATED = "last_updated";
     private static final String KEY_CONSENT_DONE = "permission_requested";
+    private static final String KEY_CONSENT_INSTALL = "permission_requested_install";
 
     private static final AtomicInteger currentSeq = new AtomicInteger();
     private static final AtomicBoolean consentDone = new AtomicBoolean();
@@ -152,17 +153,55 @@ public final class Location {
         if (consentDone.get()) {
             return true;
         }
-        if (prefs(context).getBoolean(KEY_CONSENT_DONE, false)) {
-            consentDone.set(true);
-            return true;
+        final SharedPreferences prefs = prefs(context);
+        if (!prefs.getBoolean(KEY_CONSENT_DONE, false)) {
+            return false;
         }
-        return false;
+        // the prefs may be persisted across re-installations, but the
+        // permission grants aren't and need to be re-requested
+        final long installed = installTime(context);
+        if (installed != 0) {
+            if (askedBeforeInstall(prefs, installed)) {
+                Log.i(TAG, "the location flow ran before the app was reinstalled, asking again");
+                prefs.edit().remove(KEY_CONSENT_DONE).remove(KEY_CONSENT_INSTALL).apply();
+                return false;
+            }
+            if (prefs.getLong(KEY_CONSENT_INSTALL, 0) == 0) {
+                prefs.edit().putLong(KEY_CONSENT_INSTALL, installed).apply();
+            }
+        }
+        consentDone.set(true);
+        return true;
+    }
+
+    /** Whether the consent was recorded before this installation existed. */
+    private static boolean askedBeforeInstall(SharedPreferences prefs, long installed) {
+        final long asked = prefs.getLong(KEY_CONSENT_INSTALL, 0);
+        if (asked != 0) {
+            return asked != installed;
+        }
+        // fall back to the saved location
+        final long updated = prefs.getLong(KEY_UPDATED, 0);
+        return updated != 0 && updated < installed;
     }
 
     static void markConsentDone(Context context) {
         Log.i(TAG, "marking location flow as complete; will not ask again");
-        prefs(context).edit().putBoolean(KEY_CONSENT_DONE, true).apply();
+        prefs(context).edit()
+                .putBoolean(KEY_CONSENT_DONE, true)
+                .putLong(KEY_CONSENT_INSTALL, installTime(context))
+                .apply();
         consentDone.set(true);
+    }
+
+    /** When this installation was first installed, or 0 if unknown. */
+    private static long installTime(Context context) {
+        try {
+            return context.getPackageManager().getPackageInfo(context.getPackageName(), 0).firstInstallTime;
+        } catch (PackageManager.NameNotFoundException ex) {
+            Log.w(TAG, "failed to get the install time: " + ex);
+            return 0;
+        }
     }
 
     private static float round(double deg) {
