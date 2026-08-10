@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Patrick Gaskin
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use windy_wallpaper_core::{Config, Theme};
+use windy_wallpaper_core::{Config, Theme, ThemeParams, ThemeSource};
 
 pub struct ThemeEditor {
     pub name: String,
@@ -207,52 +207,28 @@ impl ThemeEditor {
     }
 
     fn to_rust_snippet(&self) -> String {
-        let arr = |c: [f32; 4]| format!("[{:.3}, {:.3}, {:.3}, {:.3}]", c[0], c[1], c[2], c[3]);
-        let default = Config::default();
-        let params = if self.line_half_width == default.line_half_width
-            && self.particle_opacity == default.particle_opacity
-            && self.alpha_decay == default.alpha_decay
-            && self.wind_speed == default.wind_speed
-        {
-            "None".to_string()
-        } else {
-            format!(
-                "Some(ThemeParams {{\n        \
-                 line_half_width: {},\n        \
-                 particle_opacity: {},\n        \
-                 alpha_decay: {},\n        \
-                 wind_speed: {},\n    \
-                 }})",
-                self.line_half_width, self.particle_opacity, self.alpha_decay, self.wind_speed,
-            )
-        };
-        format!(
-            "pub const {}: Theme = Theme {{\n    \
-             name: {:?},\n    \
-             slow_wind_color: {},\n    \
-             fast_wind_color: {},\n    \
-             bg_color1: {},\n    \
-             bg_color2: {},\n    \
-             wallpaper_color: rgb8({:#010X}),\n    \
-             params: {},\n}};",
-            self.name.to_uppercase().replace([' ', '-'], "_"),
-            self.name,
-            arr(self.slow_wind_color),
-            arr(self.fast_wind_color),
-            arr(self.bg_color1),
-            arr(self.bg_color2),
-            pack_rgba(self.bg_color1) | 0xFF,
-            params,
-        )
+        let [r, g, b, _] = self.bg_color1;
+        ThemeSource {
+            name: &self.name,
+            slow_wind_color: self.slow_wind_color,
+            fast_wind_color: self.fast_wind_color,
+            bg_color1: self.bg_color1,
+            bg_color2: self.bg_color2,
+            wallpaper_color: [r, g, b], // no tint for the preview, so use the background
+            params: ThemeParams {
+                line_half_width: self.line_half_width,
+                particle_opacity: self.particle_opacity,
+                alpha_decay: self.alpha_decay,
+                wind_speed: self.wind_speed,
+                // particle_life, particle_count, window_size, and scale are not
+                // currently included in a theme
+            },
+        }
+        .to_string()
     }
 }
 
 fn color_row(ui: &mut egui::Ui, label: &str, color: &mut [f32; 4]) -> bool {
     ui.label(egui::RichText::new(label));
     crate::color_picker::color_picker_compact(ui, color)
-}
-
-fn pack_rgba(c: [f32; 4]) -> u32 {
-    let b = |x: f32| (x.clamp(0.0, 1.0) * 255.0).round() as u32;
-    (b(c[0]) << 24) | (b(c[1]) << 16) | (b(c[2]) << 8) | b(c[3])
 }

@@ -83,6 +83,15 @@ public final class WindyWallpaperNative implements AutoCloseable {
         return nativeThemeParam(themeIndex, param);
     }
 
+    /**
+     * Renders the colors (packed 0xAARRGGBB) and params, indexed by
+     * {@link CustomTheme} {@code COLOR_*} and {@code PARAM_*}, as the source
+     * for a {@code Theme} in core/src/config.rs.
+     */
+    public static String themeSource(String name, int[] colors, float[] params) {
+        return nativeThemeSource(name, colors, params);
+    }
+
     private static native long nativeCreate(Surface surface, int themeIndex, float dpiScale);
     private static native void nativeResize(long handle, int width, int height);
     private static native void nativeRender(long handle);
@@ -96,4 +105,5 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native void nativeDestroy(long handle);
     private static native int nativeThemeColor(int themeIndex, int component);
     private static native float nativeThemeParam(int themeIndex, int param);
+    private static native String nativeThemeSource(String name, int[] colors, float[] params);
 }

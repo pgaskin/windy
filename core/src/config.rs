@@ -71,7 +71,7 @@ pub struct Theme {
 }
 
 /// Additional [`Config`] params a theme can override.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ThemeParams {
     pub line_half_width: f32,
     pub particle_opacity: f32,
@@ -256,6 +256,18 @@ impl Default for Config {
             alpha_decay_changed: 0.91,
             particle_opacity: 1.0,
             line_half_width: 1.0,
+        }
+    }
+}
+
+impl Default for ThemeParams {
+    fn default() -> Self {
+        let config = Config::default();
+        Self {
+            line_half_width: config.line_half_width,
+            particle_opacity: config.particle_opacity,
+            alpha_decay: config.alpha_decay,
+            wind_speed: config.wind_speed,
         }
     }
 }

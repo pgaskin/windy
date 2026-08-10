@@ -11,14 +11,15 @@ use jni::sys::{jfloat, jint, jlong, jstring};
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
-use windy_wallpaper_core::{Config, Renderer, Theme};
+use windy_wallpaper_core::{Config, Renderer, Theme, ThemeParams, ThemeSource};
 
 // must match net.pgaskin.windy.CustomTheme
 const COLOR_SLOW: usize = 0;
 const COLOR_FAST: usize = 1;
 const COLOR_BG1: usize = 2;
 const COLOR_BG2: usize = 3;
-const COLOR_COUNT: usize = 5; // including the tint, which isn't rendered
+const COLOR_TINT: usize = 4; // not rendered
+const COLOR_COUNT: usize = 5;
 
 const PARAM_LINE_HALF_WIDTH: usize = 0;
 const PARAM_PARTICLE_OPACITY: usize = 1;
@@ -439,6 +440,43 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemePa
         _ => config.wind_speed, // PARAM_WIND_SPEED and anything unknown
     };
     value as jfloat
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeSource<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass,
+    name: JString<'local>,
+    colors: JIntArray,
+    params: JFloatArray,
+) -> jstring {
+    env.with_env(|env| -> Result<JString<'local>, jni::errors::Error> {
+        // with_env catches panics
+        let name = name.try_to_string(env)?;
+        let mut colors_buf = [0 as jint; COLOR_COUNT];
+        let mut params_buf = [0 as jfloat; PARAM_COUNT];
+        colors.get_region(env, 0, &mut colors_buf)?;
+        params.get_region(env, 0, &mut params_buf)?;
+
+        let [r, g, b, _] = unpack_argb(colors_buf[COLOR_TINT]);
+        let source = ThemeSource {
+            name: &name,
+            slow_wind_color: unpack_argb(colors_buf[COLOR_SLOW]),
+            fast_wind_color: unpack_argb(colors_buf[COLOR_FAST]),
+            bg_color1: unpack_argb(colors_buf[COLOR_BG1]),
+            bg_color2: unpack_argb(colors_buf[COLOR_BG2]),
+            wallpaper_color: [r, g, b],
+            params: ThemeParams {
+                line_half_width: params_buf[PARAM_LINE_HALF_WIDTH], // dp, like the theme
+                particle_opacity: params_buf[PARAM_PARTICLE_OPACITY],
+                alpha_decay: params_buf[PARAM_ALPHA_DECAY],
+                wind_speed: params_buf[PARAM_WIND_SPEED],
+            },
+        };
+        env.new_string(source.to_string()) // returns null on error
+    })
+    .resolve::<LogErrorAndDefault>()
+    .into_raw()
 }
 
 // keep it density-independent for custom themes too

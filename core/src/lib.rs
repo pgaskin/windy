@@ -3,6 +3,7 @@
 
 mod config;
 mod render;
+mod source;
 
 #[allow(clippy::all, dead_code)]
 mod shaders {
@@ -22,3 +23,4 @@ mod shaders {
 
 pub use config::{Config, Theme, ThemeParams};
 pub use render::Renderer;
+pub use source::ThemeSource;
