@@ -12,12 +12,15 @@ import android.os.Looper;
 import android.util.Log;
 import android.widget.Toast;
 
-public class WindFieldConsentActivity extends Activity {
+public class WindFieldConsentActivity extends ConsentActivity {
     private static final String TAG = "WindFieldConsent";
 
     public static void request(Context context) {
         if (!Prefs.dataConsentPending(context)) {
-            return;
+            return; // already asked
+        }
+        if (showing()) {
+            return; // the wallpaper service and the app can both ask
         }
         Log.i(TAG, "asking about wind data updates");
         final Intent intent = new Intent(context, WindFieldConsentActivity.class);

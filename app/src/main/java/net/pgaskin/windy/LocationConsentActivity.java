@@ -3,7 +3,6 @@
 package net.pgaskin.windy;
 
 import android.Manifest;
-import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -11,7 +10,7 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.util.Log;
 
-public class LocationConsentActivity extends Activity {
+public class LocationConsentActivity extends ConsentActivity {
     private static final String TAG = "LocationConsentActivity";
 
     private static final String STATE_REQUESTED_INITIAL = "requestedInitial";
@@ -23,8 +22,17 @@ public class LocationConsentActivity extends Activity {
     private boolean doneBackground;
 
     public static void request(Context context) {
-        if (Location.hasPermission(context, false) || Location.consentDone(context)) {
+        if (Prefs.dataConsentPending(context)) {
+            // only show one dialog at a time (the WindFieldConsentActivity
+            // waking the renderers can cause the LocationConsentActivity to get
+            // called)
             return;
+        }
+        if (Location.hasPermission(context, false) || Location.consentDone(context)) {
+            return; // already have permission or already asked
+        }
+        if (showing()) {
+            return; // more than one renderer can ask at once
         }
         Log.i(TAG, "permissions missing, starting location flow");
         final Intent intent = new Intent(context, LocationConsentActivity.class);
