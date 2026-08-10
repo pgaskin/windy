@@ -59,6 +59,15 @@ android {
         includeInApk = false
         includeInBundle = false
     }
+
+    packaging {
+        jniLibs {
+            // f-droid wants this since it halves the apk size (at the cost of
+            // increased the device storage usage by the size of the extracted
+            // lib)
+            useLegacyPackaging = true
+        }
+    }
 }
 
 // pin the toolchain for reproducible builds (and match f-droid and github
