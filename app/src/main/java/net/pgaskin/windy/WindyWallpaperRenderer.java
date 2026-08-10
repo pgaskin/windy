@@ -287,11 +287,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
         if (!fresh && seq == customSeq) {
             return;
         }
-        final int[] colors = CustomTheme.colors(context);
-        final float[] params = CustomTheme.params(context);
-        renderer.setCustom(
-                colors[CustomTheme.COLOR_SLOW], colors[CustomTheme.COLOR_FAST], colors[CustomTheme.COLOR_BG1], colors[CustomTheme.COLOR_BG2],
-                params[CustomTheme.PARAM_LINE_HALF_WIDTH], params[CustomTheme.PARAM_PARTICLE_OPACITY], params[CustomTheme.PARAM_ALPHA_DECAY], params[CustomTheme.PARAM_WIND_SPEED]);
+        renderer.setCustom(CustomTheme.colors(context), CustomTheme.params(context));
         customSeq = seq;
     }
 

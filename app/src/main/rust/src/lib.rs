@@ -5,13 +5,26 @@ use std::time::Instant;
 
 use jni::EnvUnowned;
 use jni::errors::LogErrorAndDefault;
-use jni::objects::{JByteArray, JClass, JObject, JString};
+use jni::objects::{JByteArray, JClass, JFloatArray, JIntArray, JObject, JString};
 use jni::sys::{jfloat, jint, jlong, jstring};
 
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
 use windy_wallpaper_core::{Config, Renderer, Theme};
+
+// must match net.pgaskin.windy.CustomTheme
+const COLOR_SLOW: usize = 0;
+const COLOR_FAST: usize = 1;
+const COLOR_BG1: usize = 2;
+const COLOR_BG2: usize = 3;
+const COLOR_COUNT: usize = 5; // including the tint, which isn't rendered
+
+const PARAM_LINE_HALF_WIDTH: usize = 0;
+const PARAM_PARTICLE_OPACITY: usize = 1;
+const PARAM_ALPHA_DECAY: usize = 2;
+const PARAM_WIND_SPEED: usize = 3;
+const PARAM_COUNT: usize = 4;
 
 struct State {
     surface: wgpu::Surface<'static>,
@@ -274,32 +287,37 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetOffs
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeSetCustom(
-    _env: EnvUnowned,
+    mut env: EnvUnowned,
     _class: JClass,
     handle: jlong,
-    slow: jint,
-    fast: jint,
-    bg1: jint,
-    bg2: jint,
-    line_half_width: jfloat,
-    particle_opacity: jfloat,
-    alpha_decay: jfloat,
-    wind_speed: jfloat,
+    colors: JIntArray,
+    params: JFloatArray,
 ) {
     if handle == 0 {
         return;
     }
     let st = unsafe { state(handle) };
-    let mut config = st.renderer.config().clone();
-    config.slow_wind_color = unpack_argb(slow);
-    config.fast_wind_color = unpack_argb(fast);
-    config.bg_color1 = unpack_argb(bg1);
-    config.bg_color2 = unpack_argb(bg2);
-    config.line_half_width = scale_line_half_width(line_half_width as f32, st.dpi_scale);
-    config.particle_opacity = particle_opacity as f32;
-    config.alpha_decay = alpha_decay as f32;
-    config.wind_speed = wind_speed as f32;
-    st.renderer.set_config(&st.device, config); // note: the colors are instant, but the params ease
+    env.with_env(|env| {
+        // with_env catches panics
+        let mut colors_buf = [0 as jint; COLOR_COUNT];
+        let mut params_buf = [0 as jfloat; PARAM_COUNT];
+        colors.get_region(env, 0, &mut colors_buf)?;
+        params.get_region(env, 0, &mut params_buf)?;
+
+        let mut config = st.renderer.config().clone();
+        config.slow_wind_color = unpack_argb(colors_buf[COLOR_SLOW]);
+        config.fast_wind_color = unpack_argb(colors_buf[COLOR_FAST]);
+        config.bg_color1 = unpack_argb(colors_buf[COLOR_BG1]);
+        config.bg_color2 = unpack_argb(colors_buf[COLOR_BG2]);
+        config.line_half_width =
+            scale_line_half_width(params_buf[PARAM_LINE_HALF_WIDTH], st.dpi_scale);
+        config.particle_opacity = params_buf[PARAM_PARTICLE_OPACITY];
+        config.alpha_decay = params_buf[PARAM_ALPHA_DECAY];
+        config.wind_speed = params_buf[PARAM_WIND_SPEED];
+        st.renderer.set_config(&st.device, config); // note: the colors are instant, but the params ease
+        Ok::<(), jni::errors::Error>(()) // leave unchanged on error
+    })
+    .resolve::<LogErrorAndDefault>();
 }
 
 #[unsafe(no_mangle)]
@@ -375,12 +393,6 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeDestroy
     drop(unsafe { Box::from_raw(handle as *mut State) });
 }
 
-// must match java
-const COLOR_SLOW: jint = 0;
-const COLOR_FAST: jint = 1;
-const COLOR_BG1: jint = 2;
-const COLOR_BG2: jint = 3;
-
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeColor(
     _env: EnvUnowned,
@@ -392,24 +404,20 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeCo
         .get(theme_index.max(0) as usize)
         .copied()
         .unwrap_or(Theme::BLUE);
-    let rgba = match component {
+    let rgba = match component.max(0) as usize {
         COLOR_SLOW => theme.slow_wind_color,
         COLOR_FAST => theme.fast_wind_color,
         // alpha doesn't matter
         COLOR_BG1 => opaque(theme.bg_color1),
         COLOR_BG2 => opaque(theme.bg_color2),
         _ => {
+            // COLOR_TINT and anything unknown
             let [r, g, b] = theme.wallpaper_color;
             [r, g, b, 1.0]
         }
     };
     pack_argb(rgba)
 }
-
-// must match java
-const PARAM_LINE_HALF_WIDTH: jint = 0;
-const PARAM_PARTICLE_OPACITY: jint = 1;
-const PARAM_ALPHA_DECAY: jint = 2;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeParam(
@@ -423,12 +431,12 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemePa
         .copied()
         .unwrap_or(Theme::BLUE);
     let config = Config::with_theme(&theme);
-    let value = match param {
+    let value = match param.max(0) as usize {
         PARAM_LINE_HALF_WIDTH => config.line_half_width, // dp, scaled when applied
         PARAM_PARTICLE_OPACITY => config.particle_opacity,
         PARAM_ALPHA_DECAY => config.alpha_decay,
-        _ => config.wind_speed,
-    }; // 3 is the wind speed
+        _ => config.wind_speed, // PARAM_WIND_SPEED and anything unknown
+    };
     value as jfloat
 }
 

@@ -23,34 +23,95 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class CustomTheme {
     private static final String TAG = "CustomTheme";
 
+    public static final class ColorSpec {
+        public final int label; // human-readable
+        public final boolean hasAlpha;
+
+        private ColorSpec(int label, boolean hasAlpha) {
+            this.label = label;
+            this.hasAlpha = hasAlpha;
+        }
+    }
+
     // do not change the order or add more values (it must match native and saved prefs)
     public static final int COLOR_SLOW = 0;
     public static final int COLOR_FAST = 1;
     public static final int COLOR_BG1 = 2;
     public static final int COLOR_BG2 = 3;
     public static final int COLOR_TINT = 4;
-    public static final int COLOR_COUNT = 5;
 
-    public static boolean hasAlpha(int color) {
-        return color == COLOR_SLOW || color == COLOR_FAST; // alpha doesn't affect other colors
+    public static final ColorSpec[] COLORS = { // [COLOR_*]
+            new ColorSpec(R.string.custom_color_slow, true),
+            new ColorSpec(R.string.custom_color_fast, true),
+            new ColorSpec(R.string.custom_color_bg1, false), // alpha doesn't affect the other colors
+            new ColorSpec(R.string.custom_color_bg2, false),
+            new ColorSpec(R.string.custom_color_tint, false),
+    };
+
+    public static final int COLOR_COUNT = COLORS.length;
+
+    public static final class ParamSpec {
+        public final String key; // pref key name
+        public final int label; // human-readable
+        public final float min, max;
+        public final int steps;
+        public final int decimals;
+        public final boolean logScale; // trail decay only really matters near 1.0
+
+        private ParamSpec(String key, int label, float min, float max, int steps, int decimals, boolean logScale) {
+            this.key = key;
+            this.label = label;
+            this.min = min;
+            this.max = max;
+            this.steps = steps;
+            this.decimals = decimals;
+            this.logScale = logScale;
+        }
+
+        /** The value at a slider position. */
+        public float value(int progress) {
+            final float fraction = progress / (float) steps;
+            if (logScale) {
+                final double lo = Math.log1p(-min);
+                final double hi = Math.log1p(-max);
+                return (float) (1.0 - Math.exp(lo + (hi - lo) * fraction));
+            }
+            return min + (max - min) * fraction;
+        }
+
+        /** The slider position for a value. */
+        public int progress(float value) {
+            final double fraction;
+            if (logScale) {
+                final double lo = Math.log1p(-min);
+                final double hi = Math.log1p(-max);
+                fraction = (Math.log1p(-Math.min(value, 0.999999)) - lo) / (hi - lo);
+            } else {
+                fraction = (value - min) / (max - min);
+            }
+            return Math.round((float) (Math.max(0.0, Math.min(fraction, 1.0)) * steps));
+        }
+
+        /** The value text. */
+        public String text(float value) {
+            return String.format(Locale.getDefault(), "%." + decimals + "f", value);
+        }
     }
 
-    // do not change the order (it must match native)
+    // do not change the order or the keys (it must match native and saved prefs)
     public static final int PARAM_LINE_HALF_WIDTH = 0;
     public static final int PARAM_PARTICLE_OPACITY = 1;
     public static final int PARAM_ALPHA_DECAY = 2;
     public static final int PARAM_WIND_SPEED = 3;
-    public static final int PARAM_COUNT = 4;
 
-    /**
-     * Param names, used for the saved keys.
-     */
-    private static final String[] PARAM_NAMES = {
-            "line_half_width",
-            "particle_opacity",
-            "alpha_decay",
-            "wind_speed",
+    public static final ParamSpec[] PARAMS = { // [PARAM_*]
+            new ParamSpec("line_half_width", R.string.param_line_width, 0.25f, 4.0f, 75, 2, false),
+            new ParamSpec("particle_opacity", R.string.param_opacity, 0.0f, 2.0f, 100, 2, false),
+            new ParamSpec("alpha_decay", R.string.param_trail_decay, 0.95f, 0.9999f, 500, 4, true),
+            new ParamSpec("wind_speed", R.string.param_wind_speed, 0.0f, 0.5f, 100, 3, false),
     };
+
+    public static final int PARAM_COUNT = PARAMS.length;
 
     private static final int MAX_PRESETS = 32;
     private static final int MAX_NAME_LENGTH = 40;
@@ -182,7 +243,7 @@ public final class CustomTheme {
     }
 
     private static String paramKey(int param) {
-        return Prefs.KEY_CUSTOM_PARAM_PREFIX + PARAM_NAMES[param];
+        return Prefs.KEY_CUSTOM_PARAM_PREFIX + PARAMS[param].key;
     }
 
     private static float[] loadParams(SharedPreferences prefs) {
@@ -247,7 +308,7 @@ public final class CustomTheme {
                     // presets saved before the params existed use the defaults
                     final float[] params = themeParams(Themes.CUSTOM);
                     for (int p = 0; p < PARAM_COUNT; p++) {
-                        params[p] = (float) obj.optDouble(PARAM_NAMES[p], params[p]);
+                        params[p] = (float) obj.optDouble(PARAMS[p].key, params[p]);
                     }
                     presets.add(new Preset(name, parseColors(obj.optString("colors", null)), params));
                 }
@@ -336,7 +397,7 @@ public final class CustomTheme {
                 obj.put("name", preset.name);
                 obj.put("colors", formatColors(preset.colors));
                 for (int p = 0; p < PARAM_COUNT; p++) {
-                    obj.put(PARAM_NAMES[p], (double) preset.params[p]);
+                    obj.put(PARAMS[p].key, (double) preset.params[p]);
                 }
                 arr.put(obj);
             }

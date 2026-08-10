@@ -20,67 +20,8 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class CustomThemeView extends LinearLayout {
-    private static final int[] COLOR_LABELS = { // [CustomTheme.COLOR_*]
-            R.string.custom_color_slow,
-            R.string.custom_color_fast,
-            R.string.custom_color_bg1,
-            R.string.custom_color_bg2,
-            R.string.custom_color_tint,
-    };
-
-    private static final class ParamSpec {
-        final int label;
-        final float min, max;
-        final int steps;
-        final int decimals;
-        final boolean logScale; // trail decay only really matters near 1.0
-
-        ParamSpec(int label, float min, float max, int steps, int decimals, boolean logScale) {
-            this.label = label;
-            this.min = min;
-            this.max = max;
-            this.steps = steps;
-            this.decimals = decimals;
-            this.logScale = logScale;
-        }
-
-        float value(int progress) {
-            final float fraction = progress / (float) steps;
-            if (logScale) {
-                final double lo = Math.log1p(-min);
-                final double hi = Math.log1p(-max);
-                return (float) (1.0 - Math.exp(lo + (hi - lo) * fraction));
-            }
-            return min + (max - min) * fraction;
-        }
-
-        int progress(float value) {
-            final double fraction;
-            if (logScale) {
-                final double lo = Math.log1p(-min);
-                final double hi = Math.log1p(-max);
-                fraction = (Math.log1p(-Math.min(value, 0.999999)) - lo) / (hi - lo);
-            } else {
-                fraction = (value - min) / (max - min);
-            }
-            return Math.round((float) (Math.max(0.0, Math.min(fraction, 1.0)) * steps));
-        }
-
-        String text(float value) {
-            return String.format(Locale.getDefault(), "%." + decimals + "f", value);
-        }
-    }
-
-    private static final ParamSpec[] PARAMS = {
-            new ParamSpec(R.string.param_line_width, 0.25f, 4.0f, 75, 2, false),
-            new ParamSpec(R.string.param_opacity, 0.0f, 2.0f, 100, 2, false),
-            new ParamSpec(R.string.param_trail_decay, 0.95f, 0.9999f, 500, 4, true),
-            new ParamSpec(R.string.param_wind_speed, 0.0f, 0.5f, 100, 3, false),
-    };
-
     private final ColorSwatchView[] swatches = new ColorSwatchView[CustomTheme.COLOR_COUNT];
     private final Runnable customThemeListener = this::refreshColors;
 
@@ -100,7 +41,7 @@ public class CustomThemeView extends LinearLayout {
         for (int i = 0; i < CustomTheme.COLOR_COUNT; i++) {
             final int color = i;
             final View item = inflater.inflate(R.layout.custom_swatch, swatchList, false);
-            final String label = getContext().getString(COLOR_LABELS[color]);
+            final String label = getContext().getString(CustomTheme.COLORS[color].label);
             swatches[color] = item.findViewById(R.id.swatch_color);
             ((TextView) item.findViewById(R.id.swatch_label)).setText(label);
             item.setContentDescription(label);
@@ -198,7 +139,7 @@ public class CustomThemeView extends LinearLayout {
 
     private void pickColor(int color, String label) {
         final int initial = CustomTheme.color(getContext(), color);
-        ColorPickerDialog.show(getContext(), label, initial, CustomTheme.hasAlpha(color),
+        ColorPickerDialog.show(getContext(), label, initial, CustomTheme.COLORS[color].hasAlpha,
                 picked -> CustomTheme.setColor(getContext(), color, picked, false), // live preview
                 picked -> {
                     CustomTheme.setColor(getContext(), color, picked, true);
@@ -220,7 +161,7 @@ public class CustomThemeView extends LinearLayout {
         for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
             final int param = i;
             final View row = inflater.inflate(R.layout.custom_param, container, false);
-            final ParamSpec spec = PARAMS[param];
+            final CustomTheme.ParamSpec spec = CustomTheme.PARAMS[param];
             ((TextView) row.findViewById(R.id.param_label)).setText(spec.label);
             values[param] = row.findViewById(R.id.param_value);
             sliders[param] = row.findViewById(R.id.param_slider);
@@ -275,7 +216,7 @@ public class CustomThemeView extends LinearLayout {
             final float[] defaults = CustomTheme.themeParams(Themes.CUSTOM);
             CustomTheme.setParams(getContext(), defaults, false);
             for (int i = 0; i < CustomTheme.PARAM_COUNT; i++) {
-                sliders[i].setProgress(PARAMS[i].progress(defaults[i]));
+                sliders[i].setProgress(CustomTheme.PARAMS[i].progress(defaults[i]));
             }
         });
     }
