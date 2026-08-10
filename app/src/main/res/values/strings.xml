@@ -98,4 +98,11 @@
     <string name="data_source">Data source</string>
     <string name="data_source_name">NOAA Global Forecast System</string>
     <string name="data_source_url" translatable="false">https://registry.opendata.aws/noaa-gfs-bdp-pds/</string>
+
+    <string name="developer_mode_on">You are now a developer!</string>
+    <string name="developer_mode_already">No need, you are already a developer.</string>
+    <plurals name="developer_mode_steps">
+        <item quantity="one">You are now %1$d step away from being a developer.</item>
+        <item quantity="other">You are now %1$d steps away from being a developer.</item>
+    </plurals>
 </resources>

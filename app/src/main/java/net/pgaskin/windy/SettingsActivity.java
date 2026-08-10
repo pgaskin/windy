@@ -82,6 +82,9 @@ public class SettingsActivity extends Activity {
         private Preference dataSourcePref;
         private boolean updating;
 
+        private int versionTaps; // reset when the settings are re-opened
+        private Toast versionToast;
+
         private AlertDialog locationDialog;
         private EditText locationInput;
 
@@ -243,7 +246,10 @@ public class SettingsActivity extends Activity {
             version.setOrder(1);
             version.setTitle(R.string.version);
             version.setSummary(BuildConfig.VERSION_NAME);
-            version.setSelectable(false);
+            version.setOnPreferenceClickListener(p -> {
+                tapVersion();
+                return true;
+            });
             aboutCategory.addPreference(version);
 
             final Preference licenses = new Preference(context);
@@ -271,7 +277,34 @@ public class SettingsActivity extends Activity {
         public void onResume() {
             super.onResume();
             getPreferenceManager().getSharedPreferences().registerOnSharedPreferenceChangeListener(this);
+            versionTaps = 0;
             refresh();
+        }
+
+        /** Like the android dev options. */
+        private void tapVersion() {
+            final Context context = getActivity();
+            if (context == null) {
+                return;
+            }
+            if (versionToast != null) {
+                versionToast.cancel(); // so they don't queue up while tapping
+            }
+            if (Prefs.developerMode(context)) {
+                versionToast = Toast.makeText(context, R.string.developer_mode_already, Toast.LENGTH_SHORT);
+            } else {
+                final int remaining = 10 - ++versionTaps;
+                if (remaining > 3) {
+                    return;
+                }
+                if (remaining > 0) {
+                    versionToast = Toast.makeText(context, getResources().getQuantityString(R.plurals.developer_mode_steps, remaining, remaining), Toast.LENGTH_SHORT);
+                } else {
+                    Prefs.setDeveloperMode(context, true);
+                    versionToast = Toast.makeText(context, R.string.developer_mode_on, Toast.LENGTH_SHORT);
+                }
+            }
+            versionToast.show();
         }
 
         @Override

@@ -24,6 +24,7 @@ public final class Prefs {
     public static final String KEY_CUSTOM_PRESET = "custom_preset"; // if unmodified
     public static final String KEY_CUSTOM_PRESETS = "custom_presets"; // saved
     public static final String KEY_CUSTOM_PARAM_PREFIX = "custom_param_"; // + the param name
+    public static final String KEY_DEVELOPER_MODE = "developer_mode";
 
     private static final String KEY_THEME_LEGACY = "theme"; // index into Themes.ALL
 
@@ -157,6 +158,14 @@ public final class Prefs {
                 .putString(KEY_THEME, Themes.get(prefs.getInt(KEY_THEME_LEGACY, 0)).service)
                 .remove(KEY_THEME_LEGACY)
                 .apply();
+    }
+
+    public static boolean developerMode(Context context) {
+        return get(context).getBoolean(KEY_DEVELOPER_MODE, false);
+    }
+
+    public static void setDeveloperMode(Context context, boolean enabled) {
+        get(context).edit().putBoolean(KEY_DEVELOPER_MODE, enabled).apply();
     }
 
     /**
