@@ -18,7 +18,7 @@ public class LocationUpdateService extends JobService {
     @Override
     public boolean onStartJob(JobParameters params) {
         Log.i(TAG, "doing periodic location update");
-        LocationConsentActivity.updateLocation(this, false);
+        Location.update(this);
         return false; // don't block
     }
 

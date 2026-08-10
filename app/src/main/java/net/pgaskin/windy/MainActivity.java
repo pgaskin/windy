@@ -98,7 +98,8 @@ public class MainActivity extends Activity {
         if (Prefs.dataConsentPending(this)) {
             WindFieldConsentActivity.request(this);
         } else {
-            LocationConsentActivity.updateLocation(this, true);
+            LocationConsentActivity.request(this);
+            Location.update(this);
         }
     }
 

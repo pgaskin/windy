@@ -45,7 +45,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
     private float easedOffset;
     private boolean offsetDirty;
 
-    private boolean locationFlowPending = !LocationConsentActivity.getLocationFlowCompleteCached();
+    private boolean locationFlowPending;
     private float[] lastLocation;
     private int rendererTheme = -1;
     private int windFieldSeq = -1;
@@ -68,6 +68,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
         this.holder = holder;
         this.themeIndex = themeIndex;
         this.active = active;
+        this.locationFlowPending = !Location.consentDone(context);
     }
 
     /** Target framerate. Easing is true during parallax animation. */
@@ -264,7 +265,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
         return !settled || resized
                 || themeIndex != rendererTheme
                 || windFieldSeq != WindField.currentSeq()
-                || locationSeq != LocationConsentActivity.currentSeq()
+                || locationSeq != Location.currentSeq()
                 || (themeIndex == Themes.CUSTOM && customSeq != CustomTheme.currentSeq());
     }
 
@@ -300,17 +301,21 @@ public abstract class WindyWallpaperRenderer extends Thread {
     private void applyLocation(WindyWallpaperNative renderer, boolean refresh, boolean fresh) {
         if (!refreshLocation()) {
             refresh = false;
-        } else if (locationFlowPending && LocationConsentActivity.getLocationFlowCompleteCached()) {
+        } else if (locationFlowPending && Location.consentDone(context)) {
             locationFlowPending = false;
             refresh = true;
         }
-        if (!refresh && !fresh && LocationConsentActivity.currentSeq() == locationSeq) {
+        if (!refresh && !fresh && Location.currentSeq() == locationSeq) {
             return;
         }
-        final float[] loc = refresh
-                ? LocationConsentActivity.updateLocation(context, true)
-                : LocationConsentActivity.savedLocation(context);
-        locationSeq = LocationConsentActivity.currentSeq();
+        final float[] loc;
+        if (refresh) {
+            LocationConsentActivity.request(context);
+            loc = Location.update(context);
+        } else {
+            loc = Location.saved(context);
+        }
+        locationSeq = Location.currentSeq();
         if (loc != null) {
             lastLocation = loc;
         }
