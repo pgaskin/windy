@@ -18,8 +18,9 @@ warp = { version = "0.4", features = ["server"] }
 
 chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 grib = { version = "0.17", default-features = false, features = [
-    "jpeg2000-unpack-with-openjpeg",
-    "ccsds-unpack-with-libaec",
+    # hayro/rust-aec eliminate the C toolchain dependency needed for openjpeg/libaec
+    "jpeg2000-unpack-with-hayro",
+    "ccsds-unpack-with-rust-aec",
     "png-unpack-with-png-crate",
     # note: not gridpoints-proj since it causes tens of unnecessary system libs to be
     # dynamically linked (and gfs pgrb2 is a normal regular lat/lng grid anyways)
