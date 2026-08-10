@@ -24,6 +24,9 @@
     <string name="custom_color_tint">System tint</string>
     <string name="advanced">Advanced</string>
     <string name="restart">Restart the wallpaper</string>
+    <string name="code">Code</string>
+    <string name="copy">Copy</string>
+    <string name="copied">Copied</string>
     <string name="param_line_width">Line width</string>
     <string name="param_opacity">Line opacity</string>
     <string name="param_trail_decay">Trail decay</string>

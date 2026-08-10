@@ -23,6 +23,18 @@
             android:contentDescription="@string/presets" />
 
         <Button
+            android:id="@+id/preset_code"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="0dp"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:text="@string/code"
+            android:textAllCaps="false"
+            android:visibility="gone" />
+
+        <Button
             android:id="@+id/preset_save"
             style="?android:attr/borderlessButtonStyle"
             android:layout_width="wrap_content"

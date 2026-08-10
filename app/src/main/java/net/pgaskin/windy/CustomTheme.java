@@ -411,6 +411,63 @@ public final class CustomTheme {
         edit.apply();
     }
 
+    /**
+     * Renders the current colors and params as a {@code Theme} for
+     * core/src/config.rs, named after the selected preset, if any.
+     */
+    public static String toRustCode(Context context) {
+        final int[] colors = colors(context);
+        final float[] params = params(context);
+        final String rustName = rustName(presetName(context));
+        final StringBuilder sb = new StringBuilder();
+        sb.append("pub const ").append(rustIdent(rustName)).append(": Theme = Theme {\n");
+        sb.append("    name: \"").append(rustName).append("\",\n");
+        sb.append("    slow_wind_color: rgba8(").append(rustHex(colors[COLOR_SLOW], true)).append("),\n");
+        sb.append("    fast_wind_color: rgba8(").append(rustHex(colors[COLOR_FAST], true)).append("),\n");
+        // alpha doesn't affect these, so they're always opaque in the theme
+        sb.append("    bg_color1: rgba8(").append(rustHex(colors[COLOR_BG1], false)).append("),\n");
+        sb.append("    bg_color2: rgba8(").append(rustHex(colors[COLOR_BG2], false)).append("),\n");
+        sb.append("    wallpaper_color: rgb8(").append(rustHex(colors[COLOR_TINT], false)).append("),\n");
+        if (Arrays.equals(params, themeParams(Themes.CUSTOM))) {
+            sb.append("    params: None,\n");
+        } else {
+            sb.append("    params: Some(ThemeParams {\n");
+            for (int i = 0; i < PARAM_COUNT; i++) {
+                sb.append("        ").append(PARAMS[i].key).append(": ").append(rustFloat(params[i])).append(",\n");
+            }
+            sb.append("    }),\n");
+        }
+        sb.append("};\n");
+        return sb.toString();
+    }
+
+    /** A theme name, e.g. "Deep blue" -> "DeepBlue". */
+    private static String rustName(String name) {
+        final StringBuilder sb = new StringBuilder();
+        for (final String word : name.split("[^A-Za-z0-9]+")) {
+            if (!word.isEmpty()) {
+                sb.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+            }
+        }
+        return sb.length() == 0 ? "Custom" : sb.toString();
+    }
+
+    /** A theme constant name, e.g. "DeepBlue" -> "DEEP_BLUE". */
+    private static String rustIdent(String name) {
+        return name.replaceAll("(?<=[a-z0-9])(?=[A-Z])", "_").toUpperCase(Locale.ROOT);
+    }
+
+    /** An ARGB color as a packed {@code 0xRRGGBBAA} literal for rgba8/rgb8. */
+    private static String rustHex(int argb, boolean hasAlpha) {
+        return String.format(Locale.ROOT, "0x%06X%02X", argb & 0xFFFFFF, hasAlpha ? argb >>> 24 : 0xFF);
+    }
+
+    /** A param value with the trailing zeros trimmed, e.g. "0.16". */
+    private static String rustFloat(float value) {
+        final String text = String.format(Locale.ROOT, "%.4f", value).replaceAll("0+$", "");
+        return text.endsWith(".") ? text + "0" : text;
+    }
+
     private static String formatColors(int[] colors) {
         final StringBuilder sb = new StringBuilder();
         for (final int color : colors) {

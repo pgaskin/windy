@@ -6,8 +6,12 @@ import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.animation.ValueAnimator;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.graphics.Typeface;
+import android.os.Build;
 import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,10 +22,12 @@ import android.view.animation.DecelerateInterpolator;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,6 +40,7 @@ public class CustomThemeView extends LinearLayout {
 
     private Spinner presetSpinner;
     private View presetDelete;
+    private View presetCode;
 
     private boolean active; // not the visibility, which lags the slide out
     private ValueAnimator slide;
@@ -84,6 +91,9 @@ public class CustomThemeView extends LinearLayout {
 
         findViewById(R.id.preset_save).setOnClickListener(v -> showSavePresetDialog());
         presetDelete.setOnClickListener(v -> showDeletePresetDialog());
+
+        presetCode = findViewById(R.id.preset_code);
+        presetCode.setOnClickListener(v -> showCodeDialog());
     }
 
     @Override
@@ -188,6 +198,7 @@ public class CustomThemeView extends LinearLayout {
         presetSpinner.setAdapter(adapter);
         presetSpinner.setSelection(Math.max(items.indexOf(selected), 0));
         presetDelete.setEnabled(!selected.isEmpty());
+        presetCode.setVisibility(Prefs.developerMode(getContext()) ? VISIBLE : GONE);
     }
 
     private void updatePresetSelection() {
@@ -283,6 +294,34 @@ public class CustomThemeView extends LinearLayout {
                 sliders[i].setProgress(CustomTheme.PARAMS[i].progress(defaults[i]));
             }
         });
+    }
+
+    private void showCodeDialog() {
+        final String code = CustomTheme.toRustCode(getContext());
+
+        final int padding = Math.round(20 * getResources().getDisplayMetrics().density);
+        final TextView text = new TextView(getContext());
+        text.setText(code);
+        text.setTypeface(Typeface.MONOSPACE);
+        text.setTextIsSelectable(true);
+        text.setHorizontallyScrolling(true);
+        text.setPadding(padding, padding / 2, padding, 0);
+
+        final HorizontalScrollView scroll = new HorizontalScrollView(getContext());
+        scroll.addView(text);
+
+        new AlertDialog.Builder(getContext())
+                .setTitle(R.string.code)
+                .setView(scroll)
+                .setPositiveButton(R.string.copy, (dialog, which) -> {
+                    final ClipboardManager clipboard = getContext().getSystemService(ClipboardManager.class);
+                    clipboard.setPrimaryClip(ClipData.newPlainText(getContext().getString(R.string.code), code));
+                    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                        Toast.makeText(getContext(), R.string.copied, Toast.LENGTH_SHORT).show(); // it's shown by the system after this
+                    }
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
     }
 
     private void showSavePresetDialog() {
