@@ -13,8 +13,8 @@ wgpu.workspace = true
 bytemuck.workspace = true
 
 [build-dependencies]
-wgsl_to_wgpu = "0.18" # match naga and workspace wgpu 29
+wgsl_to_wgpu = "0.19" # match naga and workspace wgpu 30
 
 [dev-dependencies]
-naga = { version = "29", features = ["wgsl-in"] } # match workspace wgpu 29
-pollster = "0.4"
+naga = { version = "30", features = ["wgsl-in"] } # match workspace wgpu 30
+pollster = "1"

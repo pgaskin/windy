@@ -161,7 +161,7 @@ fn screenshots(out_dir: PathBuf) {
         device.poll(wgpu::PollType::wait_indefinitely()).unwrap();
 
         // drop alpha
-        let data = slice.get_mapped_range();
+        let data = slice.get_mapped_range().unwrap();
         let mut pixels = Vec::with_capacity((w * h * 3) as usize);
         for row in 0..h {
             let start = (row * padded) as usize;
@@ -277,6 +277,7 @@ impl State {
                 power_preference: wgpu::PowerPreference::HighPerformance,
                 compatible_surface: Some(&surface),
                 force_fallback_adapter: false,
+                apply_limit_buckets: false,
             })
             .await
             .expect("no suitable gpu adapter");
@@ -308,6 +309,7 @@ impl State {
             height,
             present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: caps.alpha_modes[0],
+            color_space: wgpu::SurfaceColorSpace::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -425,9 +427,11 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("windy.egui"),
             });
-        for (id, delta) in &full_output.textures_delta.set {
-            self.egui_renderer
-                .update_texture(&self.device, &self.queue, *id, delta);
+        for (id, deltas) in &full_output.textures_delta.set {
+            for delta in deltas {
+                self.egui_renderer
+                    .update_texture(&self.device, &self.queue, *id, delta);
+            }
         }
         let user_cmds = self.egui_renderer.update_buffers(
             &self.device,
@@ -465,6 +469,6 @@ impl State {
             self.egui_renderer.free_texture(id);
         }
 
-        frame.present();
+        self.queue.present(frame);
     }
 }

@@ -14,9 +14,9 @@ wgpu.workspace = true
 log.workspace = true
 clap.workspace = true
 winit = "0.30"
-pollster = "0.4"
+pollster = "1"
 env_logger = "0.11"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-egui = "0.34"
-egui-wgpu = "0.34"
-egui-winit = { version = "0.34", default-features = false, features = ["clipboard", "wayland", "x11"] }
+egui = "0.36"
+egui-wgpu = "0.36"
+egui-winit = { version = "0.36", default-features = false, features = ["clipboard", "wayland", "x11"] }

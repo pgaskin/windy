@@ -106,6 +106,7 @@ impl State {
             height,
             present_mode: wgpu::PresentMode::AutoVsync,
             alpha_mode: caps.alpha_modes[0],
+            color_space: wgpu::SurfaceColorSpace::Auto,
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
@@ -164,7 +165,7 @@ impl State {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         self.renderer.render(&self.device, &self.queue, &view, dt);
-        frame.present();
+        self.queue.present(frame);
     }
 }
 
