@@ -162,7 +162,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
                     settingsDirty = false; // clear before reading to avoid losing changes
                 }
 
-                if (staticMode != Prefs.staticMode(prefs)) {
+                if (staticMode != Prefs.staticMode(context)) {
                     staticMode = !staticMode;
                     settled = false;
                 }
@@ -183,7 +183,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
                     renderer = new WindyWallpaperNative(holder.getSurface(), theme, dpiScale);
                     renderer.setOffset(staticMode ? 0.0f : easedOffset);
                     rendererTheme = theme;
-                    Prefs.setGpuModel(prefs, renderer.gpuModel()); // only writes if it changed
+                    Prefs.setGpuModel(context, renderer.gpuModel()); // only writes if it changed
                     settled = false;
                 }
 
@@ -246,7 +246,7 @@ public abstract class WindyWallpaperRenderer extends Thread {
 
                 renderer.render();
 
-                awaitFrame(frameStart, Prefs.limitFps(prefs, fps(easing)));
+                awaitFrame(frameStart, Prefs.limitFps(context, fps(easing)));
             }
         } catch (Throwable t) {
             Log.e(TAG, getName() + " render loop failed", t);

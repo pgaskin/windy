@@ -35,11 +35,32 @@ public final class Prefs {
     public static final long DEFAULT_LOCATION_INTERVAL = 3 * 60 * 60; // seconds
     public static final long DEFAULT_DATA_INTERVAL = BuildConfig.WIND_FIELD_UPDATE_INTERVAL * 60; // seconds
 
+    private static volatile SharedPreferences prefs;
+
     private Prefs() {
     }
 
+    /** Get the shared prefs instance after doing migrations. */
     public static SharedPreferences get(Context context) {
-        return context.createDeviceProtectedStorageContext().getSharedPreferences(STORE, Context.MODE_PRIVATE);
+        SharedPreferences current = prefs;
+        if (current == null) {
+            synchronized (Prefs.class) {
+                current = prefs;
+                if (current == null) {
+                    current = context.getApplicationContext()
+                            .createDeviceProtectedStorageContext()
+                            .getSharedPreferences(STORE, Context.MODE_PRIVATE);
+                    migrate(context, current); // before anything uses them
+                    prefs = current;
+                }
+            }
+        }
+        return current;
+    }
+
+    private static void migrate(Context context, SharedPreferences prefs) {
+        migrateDataConsent(context, prefs);
+        migrateTheme(prefs);
     }
 
     /**
@@ -79,7 +100,6 @@ public final class Prefs {
      * data updates. Nothing is updated automatically until it has.
      */
     public static boolean dataConsentPending(Context context) {
-        migrateDataConsent(context);
         return !get(context).contains(KEY_DATA_CONSENT);
     }
 
@@ -90,8 +110,7 @@ public final class Prefs {
     /**
      * Installations from before the consent dialog existed imply consent.
      */
-    private static void migrateDataConsent(Context context) {
-        final SharedPreferences prefs = get(context);
+    private static void migrateDataConsent(Context context, SharedPreferences prefs) {
         if (prefs.contains(KEY_DATA_CONSENT)) {
             return;
         }
@@ -101,32 +120,20 @@ public final class Prefs {
         }
     }
 
-    public static int limitFps(SharedPreferences prefs, int fps) {
-        final String value = prefs.getString(KEY_MAX_FPS, null); // string for ListPreference
-        if (value != null) {
-            try {
-                final int max = Integer.parseInt(value);
-                if (max > MAX_FPS_AUTOMATIC) {
-                    return Math.min(fps, max);
-                }
-            } catch (NumberFormatException ex) {
-                // no limit
-            }
-        }
-        return fps;
+    public static int limitFps(Context context, int fps) {
+        final long max = number(context, KEY_MAX_FPS, MAX_FPS_AUTOMATIC);
+        return max > MAX_FPS_AUTOMATIC ? (int) Math.min(fps, max) : fps;
     }
 
-    public static boolean staticMode(SharedPreferences prefs) {
-        return prefs.getBoolean(KEY_STATIC_MODE, false);
+    public static boolean staticMode(Context context) {
+        return get(context).getBoolean(KEY_STATIC_MODE, false);
     }
 
     /**
      * Index of the last selected theme, or 0.
      */
     public static int themeIndex(Context context) {
-        final SharedPreferences prefs = get(context);
-        migrateTheme(prefs);
-        final String service = prefs.getString(KEY_THEME, null);
+        final String service = get(context).getString(KEY_THEME, null);
         if (service != null) {
             for (final Themes.Entry theme : Themes.ALL) {
                 if (theme.service.equals(service)) {
@@ -160,22 +167,27 @@ public final class Prefs {
         return model == null || model.isEmpty() ? null : model;
     }
 
-    public static void setGpuModel(SharedPreferences prefs, String model) {
+    public static void setGpuModel(Context context, String model) {
         if (model == null || (model = model.trim()).isEmpty()) {
             return; // keep whatever we knew before
         }
+        final SharedPreferences prefs = get(context);
         if (!model.equals(prefs.getString(KEY_GPU_MODEL, null))) {
             prefs.edit().putString(KEY_GPU_MODEL, model).apply();
         }
     }
 
     private static long interval(Context context, String key, long def) {
-        final String value = get(context).getString(key, null); // string for ListPreference
+        return Math.max(number(context, key, def), INTERVAL_MANUAL);
+    }
+
+    private static long number(Context context, String key, long def) {
+        final String value = get(context).getString(key, null);
         if (value != null) {
             try {
-                return Math.max(Long.parseLong(value), INTERVAL_MANUAL);
+                return Long.parseLong(value);
             } catch (NumberFormatException ex) {
-                // use the default
+                Log.w(TAG, "ignoring invalid " + key + " " + value);
             }
         }
         return def;
