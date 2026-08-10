@@ -400,7 +400,7 @@ impl State {
         let raw_input = self.egui_state.take_egui_input(&self.window);
         let ctx = self.egui_ctx.clone();
         let editor = &mut self.editor;
-        let full_output = ctx.run_ui(raw_input, |ui| {
+        let mut full_output = ctx.run_ui(raw_input, |ui| {
             editor.ui(ui.ctx());
         });
         self.egui_state
@@ -427,10 +427,10 @@ impl State {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("windy.egui"),
             });
-        for (id, deltas) in &full_output.textures_delta.set {
-            for delta in deltas {
+        for (id, deltas) in full_output.textures_delta.set.drain() {
+            for delta in &deltas {
                 self.egui_renderer
-                    .update_texture(&self.device, &self.queue, *id, delta);
+                    .update_texture(&self.device, &self.queue, id, delta);
             }
         }
         let user_cmds = self.egui_renderer.update_buffers(
@@ -465,8 +465,8 @@ impl State {
                 .into_iter()
                 .chain(std::iter::once(encoder.finish())),
         );
-        for id in &full_output.textures_delta.free {
-            self.egui_renderer.free_texture(id);
+        for id in full_output.textures_delta.free.drain() {
+            self.egui_renderer.free_texture(&id);
         }
 
         self.queue.present(frame);
