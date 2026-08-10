@@ -1,0 +1,4 @@
+* Custom theme support.
+* Fix missing permissions after app reinstall.
+* Improve UI.
+* Lots of internal refactoring.
