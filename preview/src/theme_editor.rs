@@ -1,7 +1,9 @@
 // SPDX-FileCopyrightText: 2026 Patrick Gaskin
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use windy_wallpaper_core::{Config, Theme, ThemeColors, ThemeParams, ThemeSource};
+use windy_wallpaper_core::{Config, Style, Theme, ThemeColors, ThemeParams, ThemeSource, generate};
+
+const DEFAULT_STYLE: usize = 0;
 
 pub struct ThemeEditor {
     pub name: String,
@@ -19,6 +21,9 @@ pub struct ThemeEditor {
     pub scale: [f32; 2],
     pub open: bool,
 
+    seed: [f32; 4],
+    style: usize,
+
     actions: Actions,
 }
 
@@ -34,6 +39,13 @@ impl ThemeEditor {
     }
 
     pub fn from_config(name: &str, c: &Config) -> Self {
+        let [r, g, b] = ThemeColors {
+            slow_wind_color: c.slow_wind_color,
+            fast_wind_color: c.fast_wind_color,
+            bg_color1: c.bg_color1,
+            bg_color2: c.bg_color2,
+        }
+        .wallpaper_color();
         Self {
             name: name.to_string(),
             slow_wind_color: c.slow_wind_color,
@@ -49,6 +61,8 @@ impl ThemeEditor {
             window_size: c.window_size,
             scale: c.scale,
             open: true,
+            seed: [r, g, b, 1.0],
+            style: DEFAULT_STYLE,
             actions: Actions {
                 restart: false,
                 time_skip: false,
@@ -78,6 +92,15 @@ impl ThemeEditor {
             line_half_width: self.line_half_width,
             alpha_decay: self.alpha_decay,
             ..Config::default()
+        }
+    }
+
+    pub fn colors(&self) -> ThemeColors {
+        ThemeColors {
+            slow_wind_color: self.slow_wind_color,
+            fast_wind_color: self.fast_wind_color,
+            bg_color1: self.bg_color1,
+            bg_color2: self.bg_color2,
         }
     }
 
@@ -141,65 +164,90 @@ impl ThemeEditor {
                         });
 
                         ui.separator();
-                        ui.columns(2, |c| {
-                            let left = &mut c[0];
-                            left.columns(2, |cc| {
-                                changed |=
-                                    color_row(&mut cc[0], "Slow wind", &mut self.slow_wind_color);
-                                changed |=
-                                    color_row(&mut cc[1], "Fast wind", &mut self.fast_wind_color);
-                            });
-                            left.columns(2, |cc| {
-                                changed |=
-                                    color_row(&mut cc[0], "Background 1", &mut self.bg_color1);
-                                changed |=
-                                    color_row(&mut cc[1], "Background 2", &mut self.bg_color2);
+                        ui.horizontal_top(|ui| {
+                            let mut edited = false; // a color was changed by hand
+                            let mut regenerate = false; // the seed or style was changed
+
+                            ui.vertical(|ui| {
+                                ui.horizontal_top(|ui| {
+                                    edited |= color_row(ui, "Slow wind", &mut self.slow_wind_color);
+                                    edited |= color_row(ui, "Fast wind", &mut self.fast_wind_color);
+                                });
+                                ui.horizontal_top(|ui| {
+                                    edited |= color_row(ui, "Background 1", &mut self.bg_color1);
+                                    edited |= color_row(ui, "Background 2", &mut self.bg_color2);
+                                });
                             });
 
-                            let right = &mut c[1];
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.wind_speed, 0.0..=0.5)
-                                        .text("wind speed"),
-                                )
-                                .changed();
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.particle_life, 0.5..=30.0)
-                                        .text("particle life"),
-                                )
-                                .changed();
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.particle_opacity, 0.0..=2.0)
-                                        .text("line opacity"),
-                                )
-                                .changed();
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.line_half_width, 0.25..=4.0)
-                                        .text("line half-width (px)"),
-                                )
-                                .changed();
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.alpha_decay, 0.95..=0.9999)
-                                        .text("trail decay")
-                                        .custom_formatter(|v, _| format!("{v:.4}")),
-                                )
-                                .changed();
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.particle_count, 256..=8192)
-                                        .text("particle count"),
-                                )
-                                .changed();
-                            changed |= right
-                                .add(
-                                    egui::Slider::new(&mut self.window_size, 10.0..=180.0)
-                                        .text("longitude degrees"),
-                                )
-                                .changed();
+                            ui.separator();
+                            ui.vertical(|ui| {
+                                regenerate |= opaque_color_row(ui, "Generate", &mut self.seed);
+                                for (i, style) in Style::ALL.iter().enumerate() {
+                                    regenerate |=
+                                        ui.radio_value(&mut self.style, i, style.name).changed();
+                                }
+                            });
+                            ui.separator();
+
+                            if regenerate {
+                                let [r, g, b, _] = self.seed;
+                                let colors = generate([r, g, b], &Style::ALL[self.style]);
+                                self.slow_wind_color = colors.slow_wind_color;
+                                self.fast_wind_color = colors.fast_wind_color;
+                                self.bg_color1 = colors.bg_color1;
+                                self.bg_color2 = colors.bg_color2;
+                            } else if edited {
+                                let [r, g, b] = self.colors().wallpaper_color();
+                                self.seed = [r, g, b, 1.0];
+                                self.style = DEFAULT_STYLE;
+                            }
+                            changed |= edited || regenerate;
+
+                            ui.vertical(|right| {
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.wind_speed, 0.0..=0.5)
+                                            .text("wind speed"),
+                                    )
+                                    .changed();
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.particle_life, 0.5..=30.0)
+                                            .text("particle life"),
+                                    )
+                                    .changed();
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.particle_opacity, 0.0..=2.0)
+                                            .text("line opacity"),
+                                    )
+                                    .changed();
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.line_half_width, 0.25..=4.0)
+                                            .text("line half-width (px)"),
+                                    )
+                                    .changed();
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.alpha_decay, 0.95..=0.9999)
+                                            .text("trail decay")
+                                            .custom_formatter(|v, _| format!("{v:.4}")),
+                                    )
+                                    .changed();
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.particle_count, 256..=8192)
+                                            .text("particle count"),
+                                    )
+                                    .changed();
+                                changed |= right
+                                    .add(
+                                        egui::Slider::new(&mut self.window_size, 10.0..=180.0)
+                                            .text("longitude degrees"),
+                                    )
+                                    .changed();
+                            });
                         });
                     });
             });
@@ -209,12 +257,7 @@ impl ThemeEditor {
     fn to_rust_snippet(&self) -> String {
         ThemeSource {
             name: &self.name,
-            colors: ThemeColors {
-                slow_wind_color: self.slow_wind_color,
-                fast_wind_color: self.fast_wind_color,
-                bg_color1: self.bg_color1,
-                bg_color2: self.bg_color2,
-            },
+            colors: self.colors(),
             params: ThemeParams {
                 line_half_width: self.line_half_width,
                 particle_opacity: self.particle_opacity,
@@ -229,6 +272,17 @@ impl ThemeEditor {
 }
 
 fn color_row(ui: &mut egui::Ui, label: &str, color: &mut [f32; 4]) -> bool {
-    ui.label(egui::RichText::new(label));
-    crate::color_picker::color_picker_compact(ui, color)
+    color_column(ui, label, color, true)
+}
+
+fn opaque_color_row(ui: &mut egui::Ui, label: &str, color: &mut [f32; 4]) -> bool {
+    color_column(ui, label, color, false)
+}
+
+fn color_column(ui: &mut egui::Ui, label: &str, color: &mut [f32; 4], alpha: bool) -> bool {
+    ui.vertical(|ui| {
+        ui.label(egui::RichText::new(label));
+        crate::color_picker::color_picker_compact(ui, color, alpha)
+    })
+    .inner
 }

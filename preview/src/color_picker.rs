@@ -2,7 +2,7 @@
 // SPDX-FileCopyrightText: 2018-2021 Emil Ernerfeldt <emil.ernerfeldt@gmail.com>
 // SPDX-License-Identifier: MIT OR Apache-2.0
 
-pub fn color_picker_compact(ui: &mut egui::Ui, color: &mut [f32; 4]) -> bool {
+pub fn color_picker_compact(ui: &mut egui::Ui, color: &mut [f32; 4], alpha: bool) -> bool {
     let old = HsvaGamma::from(to_color32(*color));
 
     let HsvaGamma {
@@ -29,13 +29,17 @@ pub fn color_picker_compact(ui: &mut egui::Ui, color: &mut [f32; 4]) -> bool {
         }
         .into()
     });
-    color_slider_1d(ui, &mut a, |a| {
-        HsvaGamma {
-            a,
-            ..HsvaGamma { h, s, v, a: 1.0 }
-        }
-        .into()
-    });
+    if alpha {
+        color_slider_1d(ui, &mut a, |a| {
+            HsvaGamma {
+                a,
+                ..HsvaGamma { h, s, v, a: 1.0 }
+            }
+            .into()
+        });
+    } else {
+        a = 1.0;
+    }
 
     let new = HsvaGamma { h, s, v, a };
     if old != new {
