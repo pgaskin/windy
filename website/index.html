@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Windy Live Wallpaper</title>
+  <link rel="icon" href="icon.png">
+  <meta name="theme-color" content="#04222f">
+  <meta name="author" content="Patrick Gaskin">
+  <meta name="description" content="Android live wallpaper visualizing local wind patterns, inspired by the Pixel 2017 live wallpaper.">
+  <meta property="og:description" content="Android live wallpaper visualizing local wind patterns, inspired by the Pixel 2017 live wallpaper.">
+  <meta property="og:title" content="Windy Live Wallpaper">
+  <meta property="og:type" content="website">
+  <meta property="og:image" content="social.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="https://pgaskin.net/windy/">
+  <style>
+    @font-face {
+      font-family: "Google Sans";
+      src: url("font.woff2") format("woff2");
+      font-weight: 400 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    :root {
+      color-scheme: dark;
+      --bg: #04222f;
+      --bg-deep: #021520;
+      --line: rgba(255, 255, 255, .11);
+      --fg: #eaf4f4;
+      --muted: #9db6be;
+      --accent: #7fd195;
+      --accent-2: #55bcdd;
+      --cream: #faf0d2;
+      --pad: clamp(1.25rem, 5vw, 2.5rem);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      background: var(--bg-deep);
+      color: var(--fg);
+      font-family: "Google Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 1.0625rem;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a {
+      color: var(--accent-2);
+      text-decoration: none;
+    }
+    a:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+    h1, h2, h3 {
+      line-height: 1.15;
+      letter-spacing: -.02em;
+      margin: 0;
+    }
+    .wrap {
+      width: 100%;
+      max-width: 70rem;
+      margin-inline: auto;
+      padding-inline: var(--pad);
+    }
+    .hero {
+      position: relative;
+      min-height: min(68svh, 40rem);
+      display: flex;
+      align-items: flex-end;
+      padding-block: 2.5rem 6.5rem;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background:
+        linear-gradient(to top, var(--bg-deep) 2%, rgba(2, 21, 32, .72) 34%, rgba(2, 21, 32, .18) 70%),
+        linear-gradient(to right, rgba(2, 21, 32, .66), rgba(2, 21, 32, 0) 65%);
+    }
+    .hero h1 {
+      font-size: clamp(1.75rem, 7.2vw, 4.75rem);
+      font-weight: 700;
+      white-space: nowrap;
+      text-shadow: 0 2px 30px rgba(0, 20, 30, .55);
+    }
+    .tagline {
+      margin: 1.25rem 0 0;
+      max-width: 46ch;
+      font-size: clamp(1.0625rem, 2.2vw, 1.3125rem);
+      color: #d5e7ea;
+      text-shadow: 0 1px 18px rgba(0, 20, 30, .5);
+    }
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .75rem;
+      margin-top: 2.125rem;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: .5em;
+      padding: .8em 1.5em;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-weight: 600;
+      font-size: 1rem;
+      text-decoration: none;
+      transition: background-color .12s ease, border-color .12s ease;
+    }
+    .btn:hover {
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--cream);
+      color: #06202c;
+    }
+    .btn-primary:hover {
+      background: #fff8e3;
+      color: #06202c;
+    }
+    .btn-ghost {
+      border-color: rgba(255, 255, 255, .3);
+      color: var(--fg);
+      backdrop-filter: blur(0.375rem);
+      background: rgba(4, 26, 38, .3);
+    }
+    .btn-ghost:hover {
+      background: rgba(255, 255, 255, .14);
+      border-color: rgba(255, 255, 255, .45);
+      color: var(--fg);
+    }
+    .hero-meta {
+      margin-top: 1.5rem;
+      font-size: .9062rem;
+      color: #a8c3c9;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem 1rem;
+    }
+    .hero-meta span {
+      white-space: nowrap;
+    }
+    section {
+      padding-block: clamp(4rem, 9vw, 6.75rem);
+    }
+    .alt {
+      background: var(--bg);
+    }
+    h2 {
+      font-size: clamp(1.6875rem, 4vw, 2.5rem);
+      font-weight: 680;
+    }
+    .lede {
+      margin: 1rem 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 2vw, 1.1875rem);
+      text-wrap: pretty;
+    }
+    .features {
+      margin-top: 3.25rem;
+      display: grid;
+      gap: clamp(2rem, 4.5vw, 3.25rem) clamp(1.75rem, 5vw, 3.75rem);
+      grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    }
+    .feature h3 {
+      font-size: 1.0938rem;
+      font-weight: 650;
+      margin-bottom: .625rem;
+    }
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .9688rem;
+      line-height: 1.55;
+    }
+    .themes {
+      margin-top: 2.75rem;
+      display: grid;
+      gap: clamp(0.75rem, 2vw, 1.25rem);
+      grid-template-columns: repeat(auto-fill, minmax(10.625rem, 1fr));
+    }
+    .theme {
+      margin: 0;
+      min-width: 0;
+    }
+    .theme img,
+    .theme .swatch {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      object-fit: cover;
+      border-radius: .75rem;
+      border: 1px solid rgba(255, 255, 255, .1);
+    }
+    .theme .swatch {
+      display: grid;
+      place-items: center;
+      background: rgba(255, 255, 255, .03);
+      border-style: dashed;
+      border-color: rgba(255, 255, 255, .16);
+      color: var(--muted);
+      font-size: .7812rem;
+      text-align: center;
+      padding: .625rem;
+    }
+    .theme figcaption {
+      margin-top: .625rem;
+      font-size: .8438rem;
+      line-height: 1.4;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .shots {
+      margin-top: 2.625rem;
+      display: grid;
+      gap: clamp(1rem, 2.5vw, 1.75rem) clamp(0.875rem, 2vw, 1.375rem);
+      grid-template-columns: repeat(3, 1fr);
+    }
+    @media (max-width: 53.75rem) {
+      .shots {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    .shot {
+      margin: 0;
+      min-width: 0;
+    }
+    .shot img {
+      width: 100%;
+      border-radius: 1rem;
+      border: 1px solid rgba(255, 255, 255, .14);
+      background: #000;
+    }
+    .shot figcaption {
+      margin-top: .625rem;
+      font-size: .8438rem;
+      line-height: 1.4;
+      color: var(--muted);
+    }
+    .wind {
+      margin-top: 2.5rem;
+      width: 100%;
+      filter: brightness(.6);
+      border-radius: .75rem;
+      border: 1px solid var(--line);
+      background: #000;
+    }
+    .lede code,
+    .feature code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: .9em;
+      color: var(--cream);
+    }
+    .changelog {
+      margin-top: 2.25rem;
+    }
+    summary {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      cursor: pointer;
+      list-style: none;
+      user-select: none;
+    }
+    summary::-webkit-details-marker {
+      display: none;
+    }
+    .release summary {
+      padding-block: .625rem;
+      font-weight: 600;
+    }
+    .release summary::before {
+      content: "";
+      width: .4375rem;
+      height: .4375rem;
+      border-right: 2px solid var(--muted);
+      border-bottom: 2px solid var(--muted);
+      transform: translateX(1px) rotate(-45deg);
+      transition: transform .15s ease;
+    }
+    .release[open] summary::before {
+      transform: translateY(-2px) rotate(45deg);
+    }
+    .release ul {
+      margin: 0;
+      padding: 0 0 1.125rem 1.1875rem;
+      color: var(--muted);
+      font-size: .9688rem;
+      line-height: 1.55;
+    }
+    .release li {
+      margin-bottom: .25rem;
+    }
+    .more[open]>summary {
+      display: none;
+    }
+    .more>summary {
+      width: fit-content;
+      margin-top: 1rem;
+      color: var(--accent-2);
+      font-size: .9688rem;
+    }
+    .more>summary:hover {
+      color: var(--accent);
+      text-decoration: underline;
+    }
+    footer {
+      padding-block: 2.75rem 3.5rem;
+      color: var(--muted);
+      font-size: .9062rem;
+    }
+    footer .wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .875rem 1.75rem;
+      align-items: center;
+    }
+    footer nav {
+      margin-left: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .5rem 1.375rem;
+    }
+    footer nav a {
+      color: var(--muted);
+    }
+    footer nav a:hover {
+      color: var(--fg);
+    }
+    @media (max-width: 43.75rem) {
+      footer .wrap {
+        flex-direction: column;
+        justify-content: center;
+        text-align: center;
+        gap: .75rem;
+      }
+      footer nav {
+        margin-left: 0;
+        justify-content: center;
+        gap: .5rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="hero">
+      <img class="hero-bg" src="hero.jpg" alt="Streamlines of wind flowing across a blue background" fetchpriority="high">
+      <div class="wrap">
+        <h1>Windy Live Wallpaper</h1>
+        <p class="tagline">
+          Android live wallpaper visualizing local wind patterns. Inspired by the
+          Pixel 2017 live wallpaper, but rewritten from scratch.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary"
+            href="https://github.com/pgaskin/windy/releases/latest/download/WindyLiveWallpaper.apk">Download</a>
+          <a class="btn btn-ghost" href="https://github.com/pgaskin/windy">Source code</a>
+        </div>
+        <p class="hero-meta">
+          <span>Version 12</span>
+          <span>Android 11+</span>
+          <span>AGPL-3.0</span>
+        </p>
+      </div>
+    </div>
+    <section id="features">
+      <div class="wrap">
+        <h2>Features</h2>
+        <p class="lede">
+          More themes, longer battery life, better rendering, and updated wind data.
+        </p>
+        <div class="features">
+          <div class="feature">
+            <h3>Compatibility</h3>
+            <p>
+              The original one doesn't run at all on some newer phones, and draws
+              jagged, flickering lines on others.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>Lower resource usage</h3>
+            <p>
+              The new WebGPU-based render pipeline is much more efficient than the
+              original one.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>Static mode</h3>
+            <p>
+              Optionally draws a single image for each update, then stops entirely, making
+              battery life almost as long as a static wallpaper.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>More themes</h3>
+            <p>
+              The six from the original, plus six new ones.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>Custom themes</h3>
+            <p>
+              All colors and streamline options can be modified in the app.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>Generated themes</h3>
+            <p>
+              Automatically generate a theme from any color with multiple styles.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>Updated wind data</h3>
+            <p>
+              The wind forecast is refreshed several times a day, instead of being
+              stuck in 2019.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>No ads or tracking</h3>
+            <p>
+              All permissions are optional, and location data never leaves the device.
+            </p>
+          </div>
+          <div class="feature">
+            <h3>Open source</h3>
+            <p>
+              The app is written in Java and Rust, and the source code is available on GitHub.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="alt" id="themes">
+      <div class="wrap">
+        <h2>Themes</h2>
+        <p class="lede">
+          A theme is four colors: slow wind, fast wind, and two background colors.
+          Streamlines are tinted between the slow and fast colors based on the wind
+          speed.
+        </p>
+        <div class="themes">
+          <figure class="theme">
+            <img src="theme-blue.jpg" alt="Windy, Blue theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Blue</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-green.jpg" alt="Windy, Green theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Green</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-blush.jpg" alt="Windy, Blush theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Blush</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-midnight.jpg" alt="Windy, Midnight theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Midnight</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-deepblue.jpg" alt="Windy, Deep blue theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Deep blue</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-maroon.jpg" alt="Windy, Maroon theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Maroon</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-sepia.jpg" alt="Windy, Sepia theme" loading="lazy" width="720" height="720">
+            <figcaption>Windy, Sepia</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-sunsetwhirled.jpg" alt="Your whirled, Sunset theme" loading="lazy" width="720" height="720">
+            <figcaption>Your whirled, Sunset</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-turquoisewhirled.jpg" alt="Your whirled, Turquoise theme" loading="lazy" width="720"
+              height="720">
+            <figcaption>Your whirled, Turquoise</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-skybluewhirled.jpg" alt="Your whirled, Sky blue theme" loading="lazy" width="720"
+              height="720">
+            <figcaption>Your whirled, Sky blue</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-sparkwhirled.jpg" alt="Your whirled, Spark theme" loading="lazy" width="720" height="720">
+            <figcaption>Your whirled, Spark</figcaption>
+          </figure>
+          <figure class="theme">
+            <img src="theme-matrix.jpg" alt="Otherwhirled, Matrix theme" loading="lazy" width="720" height="720">
+            <figcaption>Otherwhirled, Matrix</figcaption>
+          </figure>
+          <figure class="theme">
+            <div class="swatch"></div>
+            <figcaption>Windy, Custom</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+    <section id="screenshots">
+      <div class="wrap">
+        <h2>Screenshots</h2>
+        <p class="lede">Preview, tweak, and generate themes in real-time.</p>
+        <div class="shots">
+          <figure class="shot">
+            <img src="app-4.jpg" alt="The app's main screen showing a live wallpaper preview and a theme picker"
+              loading="lazy" width="540" height="1200">
+            <figcaption>Live preview and theme selector.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="app-5.jpg" alt="The custom theme editor with the advanced parameter sliders open" loading="lazy"
+              width="540" height="1200">
+            <figcaption>Custom colors and particle parameters.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="app-7.jpg" alt="The generate colors dialog, with a color picker and a style dropdown"
+              loading="lazy" width="540" height="1200">
+            <figcaption>Generating a theme from a color.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="app-1.jpg" alt="A phone lock screen with the wallpaper running behind the clock" loading="lazy"
+              width="540" height="1200">
+            <figcaption>The wallpaper on the lock screen.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="app-3.jpg" alt="The settings screen showing location, data, and rendering options" loading="lazy"
+              width="540" height="1200">
+            <figcaption>Location, data, and rendering settings.</figcaption>
+          </figure>
+          <figure class="shot">
+            <img src="app-2.jpg" alt="Android's live wallpaper picker listing the Windy themes" loading="lazy"
+              width="540" height="1200">
+            <figcaption>Each theme is a separate entry in the system picker.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+    <section class="alt" id="live-data">
+      <div class="wrap">
+        <h2>Live data</h2>
+        <p class="lede">
+          The wind field is generated from
+          <a href="https://registry.opendata.aws/noaa-gfs-bdp-pds/">NOAA Global
+          Forecast System</a> 0.25&deg; ANL data (updated every 6 hours) using
+          the wind vector values (<code>UGRD</code>, <code>VGRD</code>) at
+          850&nbsp;mb elevation, mapped into an equirectangular RGB image:
+          east/north in red and green, magnitude (0 to 30&nbsp;m/s) in blue.
+        </p>
+        <img class="wind" src="https://windy.api.pgaskin.net/wind_field.jpg"
+          alt="The current wind field: an equirectangular world map with the wind vector encoded into the red, green, and blue channels"
+          width="1440" height="721" loading="lazy">
+      </div>
+    </section>
+    <section id="changelog">
+      <div class="wrap">
+        <h2>What's new</h2>
+        <div class="changelog">
+          <!-- CHANGELOG -->
+        </div>
+      </div>
+    </section>
+  </main>
+  <footer>
+    <div class="wrap">
+      <span>&copy; 2023-2026 Patrick Gaskin</span>
+      <nav>
+        <a href="https://github.com/pgaskin/windy">Source</a>
+        <a href="https://github.com/pgaskin/windy/releases">Releases</a>
+        <a href="https://github.com/pgaskin/windy/issues">Issues</a>
+        <a href="https://pgaskin.net">pgaskin.net</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

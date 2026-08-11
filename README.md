@@ -16,10 +16,10 @@ The shaders are inspired by the official Pixel windy live wallpaper, but rewritt
 - Lower memory and CPU usage.
 - Optionally render static frames to effectively eliminate all resource usage.
 - Support for custom themes.
-* Support for automatically generating themes for an arbitrary color.
+- Support for automatically generating themes for an arbitrary color.
 - Other fixes.
 
-[**`Download`**](https://github.com/pgaskin/windy/releases/latest)
+[**`Download`**](https://github.com/pgaskin/windy/releases/latest) [**`Website`**](https://pgaskin.net/windy)
 
 #### Screenshots
 

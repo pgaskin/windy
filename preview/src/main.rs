@@ -35,6 +35,10 @@ struct Args {
     /// Render previews to the given directory and exit
     #[arg(long, value_name = "dir")]
     screenshots: Option<PathBuf>,
+
+    /// Render website images to the given directory and exit
+    #[arg(long, value_name = "dir", hide = true)]
+    website: Option<PathBuf>,
 }
 
 fn main() {
@@ -52,6 +56,10 @@ fn main() {
         screenshots(dir);
         return;
     }
+    if let Some(dir) = args.website {
+        website(dir);
+        return;
+    }
     let theme = resolve_theme(args.theme);
 
     let event_loop = EventLoop::new().unwrap();
@@ -60,43 +68,146 @@ fn main() {
     event_loop.run_app(&mut app).unwrap();
 }
 
+/// Size, zoom, line width, and particle count for the preview images. Other
+/// sizes are scaled to match by [`fit_config`].
+const REF_SIZE: f32 = 960.0;
+const REF_WINDOW_SIZE: f32 = 25.0;
+const REF_LINE_HALF_WIDTH: f32 = 1.5;
+const REF_PARTICLE_COUNT: f32 = 2048.0;
+const REF_FRAMES: usize = 600;
+const REF_LOCATION: (f32, f32) = (-97.0, 38.0);
+
+/// Zooms in on `config` and scales the particle count so an image of the given
+/// size has the same apparent scale and streamline density as a
+/// [`REF_SIZE`]-square one (which it reproduces exactly).
+fn fit_config(config: &mut Config, width: u32, height: u32) {
+    let (w, h) = (width as f32, height as f32);
+    config.window_size = REF_WINDOW_SIZE * (h / REF_SIZE);
+    config.line_half_width = REF_LINE_HALF_WIDTH;
+    config.particle_count = (REF_PARTICLE_COUNT * ((w * h) / (REF_SIZE * REF_SIZE))).round() as u32;
+}
+
 fn screenshots(out_dir: PathBuf) {
     std::fs::create_dir_all(&out_dir).expect("create output dir");
 
+    let gpu = Offscreen::new();
     let (w, h) = (960u32, 960u32);
-    let frames: usize = 600;
-    let (lng, lat) = (-97.0, 38.0);
-
-    let instance = wgpu::Instance::default();
-    let adapter =
-        pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
-            .expect("no GPU adapter");
-    let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-        label: None,
-        required_features: wgpu::Features::empty(),
-        required_limits: wgpu::Limits::default(),
-        memory_hints: wgpu::MemoryHints::default(),
-        ..Default::default()
-    }))
-    .unwrap();
-
-    let wind = image::load_from_memory(WIND_PNG).unwrap().to_rgba8();
 
     for theme in Theme::ALL {
         if theme.name == Theme::CUSTOM.name {
             continue;
         }
-
         let mut config = Config::with_theme(theme);
+        fit_config(&mut config, w, h);
 
-        // zoom in a bit
-        config.window_size = 25.0;
-        config.line_half_width = 1.5;
+        let pixels = gpu.render(config, w, h, REF_FRAMES);
+        let out_path = out_dir.join(format!("windy_{}.jpg", theme.name.to_lowercase()));
+        image::save_buffer(&out_path, &pixels, w, h, image::ColorType::Rgb8).unwrap();
+        println!("{}", out_path.display());
+    }
+}
+
+fn website(out_dir: PathBuf) {
+    std::fs::create_dir_all(&out_dir).expect("create output dir");
+
+    let gpu = Offscreen::new();
+
+    // banner images
+    for (name, theme, w, h, quality) in [
+        ("hero", &Theme::BLUE, 1920u32, 1080u32, 86u8),
+        ("social", &Theme::BLUE, 1200, 630, 90u8),
+    ] {
+        let mut config = Config::with_theme(theme);
+        fit_config(&mut config, w, h);
+
+        let pixels = gpu.render(config, w, h, REF_FRAMES);
+        save_jpeg(&out_dir.join(format!("{name}.jpg")), &pixels, w, h, quality);
+    }
+
+    // theme gallery tiles
+    for theme in Theme::ALL {
+        if theme.name == Theme::CUSTOM.name {
+            continue;
+        }
+        let (w, h) = (720u32, 720u32);
+        let mut config = Config::with_theme(theme);
+        fit_config(&mut config, w, h);
+
+        let pixels = gpu.render(config, w, h, REF_FRAMES);
+        let name = theme.name.to_lowercase();
+        save_jpeg(
+            &out_dir.join(format!("theme-{name}.jpg")),
+            &pixels,
+            w,
+            h,
+            90u8,
+        );
+    }
+
+    // the app icon and screenshots, from the store metadata
+    let metadata = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../metadata/en-US/images");
+    let icon_path = out_dir.join("icon.png");
+    std::fs::copy(metadata.join("icon.png"), &icon_path).expect("copy icon");
+    println!("{}", icon_path.display());
+
+    for n in 1..=7 {
+        let src = metadata.join(format!("phoneScreenshots/{n}.png"));
+        let img = image::open(&src)
+            .unwrap_or_else(|e| panic!("open {}: {e}", src.display()))
+            .to_rgb8();
+        let (w, h) = (img.width() / 2, img.height() / 2);
+        let img = image::imageops::resize(&img, w, h, image::imageops::FilterType::Lanczos3);
+        save_jpeg(&out_dir.join(format!("app-{n}.jpg")), &img, w, h, 90u8);
+    }
+}
+
+fn save_jpeg(path: &std::path::Path, pixels: &[u8], width: u32, height: u32, quality: u8) {
+    let file = std::io::BufWriter::new(std::fs::File::create(path).expect("create image"));
+    image::codecs::jpeg::JpegEncoder::new_with_quality(file, quality)
+        .encode(pixels, width, height, image::ExtendedColorType::Rgb8)
+        .expect("encode jpeg");
+    println!("{}", path.display());
+}
+
+struct Offscreen {
+    device: wgpu::Device,
+    queue: wgpu::Queue,
+    wind: image::RgbaImage,
+}
+
+impl Offscreen {
+    fn new() -> Self {
+        let instance = wgpu::Instance::default();
+        let adapter =
+            pollster::block_on(instance.request_adapter(&wgpu::RequestAdapterOptions::default()))
+                .expect("no GPU adapter");
+        let (device, queue) = pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
+            label: None,
+            required_features: wgpu::Features::empty(),
+            required_limits: wgpu::Limits::default(),
+            memory_hints: wgpu::MemoryHints::default(),
+            ..Default::default()
+        }))
+        .unwrap();
+
+        let wind = image::load_from_memory(WIND_PNG).unwrap().to_rgba8();
+
+        Self {
+            device,
+            queue,
+            wind,
+        }
+    }
+
+    fn render(&self, config: Config, w: u32, h: u32, frames: usize) -> Vec<u8> {
+        let (device, queue) = (&self.device, &self.queue);
+        let (lng, lat) = REF_LOCATION;
 
         // setup
         let format = wgpu::TextureFormat::Rgba8Unorm;
-        let mut renderer = Renderer::new(&device, &queue, format, config, w, h);
-        renderer.set_wind_field(&device, &queue, wind.width(), wind.height(), &wind);
+        let mut renderer = Renderer::new(device, queue, format, config, w, h);
+        let wind = &self.wind;
+        renderer.set_wind_field(device, queue, wind.width(), wind.height(), wind);
         renderer.set_user_location(lng, lat);
 
         // render
@@ -117,11 +228,11 @@ fn screenshots(out_dir: PathBuf) {
         let view = target.create_view(&wgpu::TextureViewDescriptor::default());
 
         if let Ok(v) = std::env::var("WINDY_WARMUP") {
-            renderer.skip(&device, &queue, v.parse().unwrap());
+            renderer.skip(device, queue, v.parse().unwrap());
         }
 
         for _ in 0..frames {
-            renderer.render(&device, &queue, &view, 1.0 / 60.0);
+            renderer.render(device, queue, &view, 1.0 / 60.0);
         }
 
         // copy to buffer
@@ -174,11 +285,7 @@ fn screenshots(out_dir: PathBuf) {
                 pixels.extend_from_slice(&px[..3]);
             }
         }
-
-        // render jpg
-        let out_path = out_dir.join(format!("windy_{}.jpg", theme.name.to_lowercase()));
-        image::save_buffer(&out_path, &pixels, w, h, image::ColorType::Rgb8).unwrap();
-        println!("{}", out_path.display());
+        pixels
     }
 }
 
