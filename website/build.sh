@@ -16,11 +16,14 @@ files=("$changelogs"/*.txt)
 shopt -u nullglob
 test ${#files[@]} -gt 0 || die "no changelogs in $changelogs"
 
+versions=$(printf '%s\n' "${files[@]}" | sed 's|.*/||; s|\.txt$||' | sort -rn)
+version=$(printf '          <span>Version %s</span>' "$(printf '%s\n' "$versions" | head -n1)")
+
 whatsnew=$(
     set -e
     indent='          '
     n=0
-    for v in $(printf '%s\n' "${files[@]}" | sed 's|.*/||; s|\.txt$||' | sort -rn); do
+    for v in $versions; do
         open=''
         if [ $n -lt 2 ]; then
             open=' open'
@@ -43,10 +46,14 @@ whatsnew=$(
     fi
 )
 
-whatsnew="$whatsnew" awk '
-    /<!-- CHANGELOG -->/ { printf "%s\n", ENVIRON["whatsnew"]; found = 1; next }
+whatsnew="$whatsnew" version="$version" awk '
+    /<!-- CHANGELOG -->/ { printf "%s\n", ENVIRON["whatsnew"]; changelog = 1; next }
+    /<!-- VERSION -->/ { printf "%s\n", ENVIRON["version"]; ver = 1; next }
     { print }
-    END { if (!found) { print "no CHANGELOG placeholder in index.html" >"/dev/stderr"; exit 1 } }
+    END {
+        if (!changelog) { print "no CHANGELOG placeholder in index.html" >"/dev/stderr"; exit 1 }
+        if (!ver) { print "no VERSION placeholder in index.html" >"/dev/stderr"; exit 1 }
+    }
 ' index.html >build/index.html
 echo "build/index.html"
 
