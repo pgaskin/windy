@@ -18,8 +18,7 @@ const COLOR_SLOW: usize = 0;
 const COLOR_FAST: usize = 1;
 const COLOR_BG1: usize = 2;
 const COLOR_BG2: usize = 3;
-const COLOR_TINT: usize = 4; // not rendered
-const COLOR_COUNT: usize = 5;
+const COLOR_COUNT: usize = 4;
 
 const PARAM_LINE_HALF_WIDTH: usize = 0;
 const PARAM_PARTICLE_OPACITY: usize = 1;
@@ -409,16 +408,51 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeCo
     let rgba = match component.max(0) as usize {
         COLOR_SLOW => theme.colors.slow_wind_color,
         COLOR_FAST => theme.colors.fast_wind_color,
-        // alpha doesn't matter
-        COLOR_BG1 => opaque(theme.colors.bg_color1),
+        // alpha doesn't affect the other colors
         COLOR_BG2 => opaque(theme.colors.bg_color2),
-        _ => {
-            // COLOR_TINT and anything unknown
-            let [r, g, b] = theme.wallpaper_color;
-            [r, g, b, 1.0]
-        }
+        _ => opaque(theme.colors.bg_color1), // COLOR_BG1 and anything unknown
     };
     pack_argb(rgba)
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeTint(
+    _env: EnvUnowned,
+    _class: JClass,
+    theme_index: jint,
+) -> jint {
+    let theme = Theme::ALL
+        .get(theme_index.max(0) as usize)
+        .copied()
+        .unwrap_or(Theme::BLUE);
+    let [r, g, b] = theme.wallpaper_color();
+    pack_argb([r, g, b, 1.0])
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeCustomTint(
+    mut env: EnvUnowned,
+    _class: JClass,
+    colors: JIntArray,
+) -> jint {
+    env.with_env(|env| {
+        // with_env catches panics
+        let colors = theme_colors(env, &colors)?;
+        let [r, g, b] = colors.wallpaper_color();
+        Ok::<jint, jni::errors::Error>(pack_argb([r, g, b, 1.0]))
+    })
+    .resolve::<LogErrorAndDefault>()
+}
+
+fn theme_colors(env: &mut jni::Env, colors: &JIntArray) -> Result<ThemeColors, jni::errors::Error> {
+    let mut buf = [0 as jint; COLOR_COUNT];
+    colors.get_region(env, 0, &mut buf)?;
+    Ok(ThemeColors {
+        slow_wind_color: unpack_argb(buf[COLOR_SLOW]),
+        fast_wind_color: unpack_argb(buf[COLOR_FAST]),
+        bg_color1: unpack_argb(buf[COLOR_BG1]),
+        bg_color2: unpack_argb(buf[COLOR_BG2]),
+    })
 }
 
 #[unsafe(no_mangle)]
@@ -453,21 +487,12 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeSo
     env.with_env(|env| -> Result<JString<'local>, jni::errors::Error> {
         // with_env catches panics
         let name = name.try_to_string(env)?;
-        let mut colors_buf = [0 as jint; COLOR_COUNT];
         let mut params_buf = [0 as jfloat; PARAM_COUNT];
-        colors.get_region(env, 0, &mut colors_buf)?;
         params.get_region(env, 0, &mut params_buf)?;
 
-        let [r, g, b, _] = unpack_argb(colors_buf[COLOR_TINT]);
         let source = ThemeSource {
             name: &name,
-            colors: ThemeColors {
-                slow_wind_color: unpack_argb(colors_buf[COLOR_SLOW]),
-                fast_wind_color: unpack_argb(colors_buf[COLOR_FAST]),
-                bg_color1: unpack_argb(colors_buf[COLOR_BG1]),
-                bg_color2: unpack_argb(colors_buf[COLOR_BG2]),
-            },
-            wallpaper_color: [r, g, b],
+            colors: theme_colors(env, &colors)?,
             params: ThemeParams {
                 line_half_width: params_buf[PARAM_LINE_HALF_WIDTH], // dp, like the theme
                 particle_opacity: params_buf[PARAM_PARTICLE_OPACITY],

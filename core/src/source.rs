@@ -9,7 +9,6 @@ use crate::config::{Theme, ThemeColors, ThemeParams};
 pub struct ThemeSource<'a> {
     pub name: &'a str,
     pub colors: ThemeColors,
-    pub wallpaper_color: [f32; 3],
     /// Rendered as `None` if it matches the [`ThemeParams`] defaults.
     pub params: ThemeParams,
 }
@@ -19,7 +18,6 @@ impl<'a> From<&'a Theme> for ThemeSource<'a> {
         Self {
             name: theme.name,
             colors: theme.colors,
-            wallpaper_color: theme.wallpaper_color,
             params: theme.params.unwrap_or_default(),
         }
     }
@@ -34,8 +32,6 @@ impl fmt::Display for ThemeSource<'_> {
         // alpha doesn't affect these, so remove the alpha
         let bg1 = pack_rgba(opaque(self.colors.bg_color1));
         let bg2 = pack_rgba(opaque(self.colors.bg_color2));
-        let [r, g, b] = self.wallpaper_color;
-        let tint = pack_rgba([r, g, b, 1.0]);
 
         writeln!(f, "pub const {ident}: Theme = Theme {{")?;
         writeln!(f, "    name: \"{name}\",")?;
@@ -45,7 +41,6 @@ impl fmt::Display for ThemeSource<'_> {
         writeln!(f, "        bg_color1: rgba8(0x{bg1:08X}),")?;
         writeln!(f, "        bg_color2: rgba8(0x{bg2:08X}),")?;
         writeln!(f, "    }},")?;
-        writeln!(f, "    wallpaper_color: rgb8(0x{tint:08X}),")?;
         if self.params == ThemeParams::default() {
             writeln!(f, "    params: None,")?;
         } else {

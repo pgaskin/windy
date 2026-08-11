@@ -207,7 +207,6 @@ impl ThemeEditor {
     }
 
     fn to_rust_snippet(&self) -> String {
-        let [r, g, b, _] = self.bg_color1;
         ThemeSource {
             name: &self.name,
             colors: ThemeColors {
@@ -216,7 +215,6 @@ impl ThemeEditor {
                 bg_color1: self.bg_color1,
                 bg_color2: self.bg_color2,
             },
-            wallpaper_color: [r, g, b], // no tint for the preview, so use the background
             params: ThemeParams {
                 line_half_width: self.line_half_width,
                 particle_opacity: self.particle_opacity,

@@ -63,7 +63,6 @@ impl Config {
 pub struct Theme {
     pub name: &'static str,
     pub colors: ThemeColors,
-    pub wallpaper_color: [f32; 3], // does not affect rendering, currently only for Android
     pub params: Option<ThemeParams>, // param overrides, None uses the defaults
 }
 
@@ -94,7 +93,6 @@ impl Theme {
             bg_color1: rgba8(0x044866FF),
             bg_color2: rgba8(0x0085AAFF),
         },
-        wallpaper_color: rgb8(0x085173FF),
         params: None,
     };
     pub const GREEN: Theme = Theme {
@@ -105,7 +103,6 @@ impl Theme {
             bg_color1: rgba8(0x044822FF),
             bg_color2: rgba8(0x008533FF),
         },
-        wallpaper_color: rgb8(0x085112FF),
         params: None,
     };
     pub const BLUSH: Theme = Theme {
@@ -116,7 +113,6 @@ impl Theme {
             bg_color1: rgba8(0x4078C8FF),
             bg_color2: rgba8(0xD9B0EAFF),
         },
-        wallpaper_color: rgb8(0x4A7CC9FF),
         params: None,
     };
     pub const MIDNIGHT: Theme = Theme {
@@ -127,7 +123,6 @@ impl Theme {
             bg_color1: rgba8(0x000000AF),
             bg_color2: rgba8(0x464749FF),
         },
-        wallpaper_color: rgb8(0x101110FF),
         params: None,
     };
     pub const DEEP_BLUE: Theme = Theme {
@@ -138,7 +133,6 @@ impl Theme {
             bg_color1: [0.0510, 0.0275, 0.0275, 1.0000],
             bg_color2: [0.0039, 0.0039, 0.1255, 1.0000],
         },
-        wallpaper_color: rgb8(0x0D0707FF),
         params: None,
     };
     pub const MAROON: Theme = Theme {
@@ -149,7 +143,6 @@ impl Theme {
             bg_color1: rgba8(0x1A0909FF),
             bg_color2: rgba8(0x451717FF),
         },
-        wallpaper_color: rgb8(0x4F1A1AFF),
         params: None,
     };
     pub const SEPIA: Theme = Theme {
@@ -160,7 +153,6 @@ impl Theme {
             bg_color1: rgba8(0xBDA682FF),
             bg_color2: rgba8(0xC49F64FF),
         },
-        wallpaper_color: rgb8(0xD87900FF),
         params: None,
     };
     pub const SUNSET_WHIRLED: Theme = Theme {
@@ -171,7 +163,6 @@ impl Theme {
             bg_color1: rgba8(0xE58186DF),
             bg_color2: rgba8(0xF7B38DDF),
         },
-        wallpaper_color: rgb8(0xE88991FF),
         params: None,
     };
     pub const TURQUOISE_WHIRLED: Theme = Theme {
@@ -182,7 +173,6 @@ impl Theme {
             bg_color1: rgba8(0x0093B9DF),
             bg_color2: rgba8(0xEFDD81DF),
         },
-        wallpaper_color: rgb8(0x0996B7FF),
         params: None,
     };
     pub const SKY_BLUE_WHIRLED: Theme = Theme {
@@ -193,7 +183,6 @@ impl Theme {
             bg_color1: rgba8(0x75AAFAFF),
             bg_color2: rgba8(0xF4FF87FF),
         },
-        wallpaper_color: rgb8(0x7BAEF5FF),
         params: None,
     };
     pub const SPARK_WHIRLED: Theme = Theme {
@@ -204,7 +193,6 @@ impl Theme {
             bg_color1: rgba8(0x270D03FF),
             bg_color2: rgba8(0x031A27FF),
         },
-        wallpaper_color: rgb8(0x96241AFF),
         params: None,
     };
     pub const MATRIX: Theme = Theme {
@@ -215,7 +203,6 @@ impl Theme {
             bg_color1: rgba8(0x090E15FF),
             bg_color2: rgba8(0x031D10FF),
         },
-        wallpaper_color: rgb8(0x2B5542FF),
         params: Some(ThemeParams {
             line_half_width: 1.55,
             particle_opacity: 0.66,
@@ -233,7 +220,6 @@ impl Theme {
             bg_color1: rgba8(0x1B2735FF),
             bg_color2: rgba8(0x3A5A80FF),
         },
-        wallpaper_color: rgb8(0x2B4055FF),
         params: None,
     };
 
@@ -311,14 +297,5 @@ const fn rgba8(hex: u32) -> [f32; 4] {
         ((hex >> 16) & 0xff) as f32 / 255.0,
         ((hex >> 8) & 0xff) as f32 / 255.0,
         (hex & 0xff) as f32 / 255.0,
-    ]
-}
-
-/// Packed `0xRRGGBBAA` to `[r, g, b]` from `[0,1]`, discarding alpha.
-const fn rgb8(hex: u32) -> [f32; 3] {
-    [
-        ((hex >> 24) & 0xff) as f32 / 255.0,
-        ((hex >> 16) & 0xff) as f32 / 255.0,
-        ((hex >> 8) & 0xff) as f32 / 255.0,
     ]
 }

@@ -11,6 +11,7 @@ categories = ["graphics"]
 [dependencies]
 wgpu.workspace = true
 bytemuck.workspace = true
+material-colors = "0.4" # the material-color-utilities port, for HCT
 
 [build-dependencies]
 wgsl_to_wgpu = "0.19" # match naga and workspace wgpu 30

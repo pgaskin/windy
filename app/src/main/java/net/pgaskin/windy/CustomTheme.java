@@ -38,14 +38,12 @@ public final class CustomTheme {
     public static final int COLOR_FAST = 1;
     public static final int COLOR_BG1 = 2;
     public static final int COLOR_BG2 = 3;
-    public static final int COLOR_TINT = 4;
 
     public static final ColorSpec[] COLORS = { // [COLOR_*]
             new ColorSpec(R.string.custom_color_slow, true),
             new ColorSpec(R.string.custom_color_fast, true),
             new ColorSpec(R.string.custom_color_bg1, false), // alpha doesn't affect the other colors
             new ColorSpec(R.string.custom_color_bg2, false),
-            new ColorSpec(R.string.custom_color_tint, false),
     };
 
     public static final int COLOR_COUNT = COLORS.length;

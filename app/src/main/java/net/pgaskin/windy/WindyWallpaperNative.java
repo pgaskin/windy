@@ -79,6 +79,19 @@ public final class WindyWallpaperNative implements AutoCloseable {
         return nativeThemeColor(themeIndex, component); // packed 0xAARRGGBB
     }
 
+    /** The color for the system theme, derived from a theme's colors. */
+    public static int themeTint(int themeIndex) {
+        return nativeThemeTint(themeIndex); // packed 0xAARRGGBB
+    }
+
+    /**
+     * The color for the system theme, derived from the colors (packed
+     * 0xAARRGGBB) indexed by {@link CustomTheme} {@code COLOR_*}.
+     */
+    public static int customTint(int[] colors) {
+        return nativeCustomTint(colors); // packed 0xAARRGGBB
+    }
+
     public static float themeParam(int themeIndex, int param) {
         return nativeThemeParam(themeIndex, param);
     }
@@ -104,6 +117,8 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native String nativeGpuModel(long handle);
     private static native void nativeDestroy(long handle);
     private static native int nativeThemeColor(int themeIndex, int component);
+    private static native int nativeThemeTint(int themeIndex);
+    private static native int nativeCustomTint(int[] colors);
     private static native float nativeThemeParam(int themeIndex, int param);
     private static native String nativeThemeSource(String name, int[] colors, float[] params);
 }
