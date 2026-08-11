@@ -66,6 +66,10 @@ public class CustomThemeView extends LinearLayout {
             swatchList.addView(item);
         }
 
+        final View generate = inflater.inflate(R.layout.custom_generate, swatchList, false);
+        generate.setOnClickListener(v -> showGenerateDialog());
+        swatchList.addView(generate);
+
         final View advanced = inflater.inflate(R.layout.custom_advanced, swatchList, false);
         advanced.setOnClickListener(v -> showAdvancedDialog());
         swatchList.addView(advanced);
@@ -294,6 +298,64 @@ public class CustomThemeView extends LinearLayout {
                 sliders[i].setProgress(CustomTheme.PARAMS[i].progress(defaults[i]));
             }
         });
+    }
+
+    private void showGenerateDialog() {
+        final int[] initial = CustomTheme.colors(getContext());
+
+        final LayoutInflater inflater = LayoutInflater.from(getContext());
+        final View container = inflater.inflate(R.layout.dialog_generate, null);
+        final ColorPickerView picker = container.findViewById(R.id.generate_color);
+        final Spinner style = container.findViewById(R.id.generate_style);
+
+        final ArrayAdapter<String> styles = new ArrayAdapter<>(
+                getContext(), android.R.layout.simple_spinner_item, Styles.ALL);
+        styles.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        style.setAdapter(styles);
+
+        picker.setAlphaEnabled(false);
+        picker.setColor(WindyWallpaperNative.customTint(initial)); // the current colors' own tint
+
+        final Runnable generate = () -> {
+            final int[] colors = WindyWallpaperNative.generateColors(picker.getColor(), style.getSelectedItemPosition());
+            if (colors != null) {
+                CustomTheme.setColors(getContext(), colors, false); // live preview
+            }
+        };
+        picker.setOnColorChangedListener(color -> generate.run());
+        style.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                generate.run(); // also runs when the spinner is first added, showing the theme
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+        final boolean[] accepted = {false};
+        final AlertDialog dialog = new AlertDialog.Builder(getContext())
+                .setTitle(R.string.generate_title)
+                .setView(container)
+                .setPositiveButton(R.string.save, (d, which) -> {
+                    accepted[0] = true;
+                    CustomTheme.persist(getContext());
+                    updatePresetSelection();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .setOnDismissListener(d -> {
+                    if (!accepted[0]) {
+                        CustomTheme.setColors(getContext(), initial, false); // undo the live preview
+                    }
+                })
+                .create();
+
+        final Window window = dialog.getWindow();
+        if (window != null) {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND); // don't dim the wallpaper being previewed
+        }
+        dialog.show();
     }
 
     private void showCodeDialog() {

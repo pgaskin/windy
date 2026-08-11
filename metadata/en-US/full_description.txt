@@ -7,7 +7,8 @@ Android live wallpaper visualizing local wind patterns, inspired by the Pixel 20
 * More color schemes.
 * Better location handling.
 * Modern render pipeline using WebGPU.
-* Support for custom themes.
+* Create custom themes.
+* Generate themes for arbitrary colors.
 * All code is written from scratch.
 * Other fixes.
 

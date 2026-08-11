@@ -95,6 +95,7 @@ androidComponents.onVariants(androidComponents.selector().all()) { variant ->
     def cap = variant.name.substring(0, 1).toUpperCase() + variant.name.substring(1)
     def genThemes = tasks.register("generate${cap}Themes", GenerateThemesTask) {
         themeConfig.set(rootProject.file("core/src/config.rs"))
+        styleConfig.set(rootProject.file("core/src/color.rs"))
     }
     variant.sources.java?.addGeneratedSourceDirectory(genThemes) { it.javaOutputDir }
     variant.sources.res?.addGeneratedSourceDirectory(genThemes) { it.resOutputDir }

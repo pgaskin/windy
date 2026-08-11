@@ -38,6 +38,9 @@
     <string name="preset_name">Name</string>
     <string name="preset_default_name">Custom %1$d</string>
     <string name="delete_preset">Delete</string>
+    <string name="generate">Generate</string>
+    <string name="generate_title">Generate colors</string>
+    <string name="generate_style">Style</string>
     <string name="delete_preset_message">Delete the preset %1$s?</string>
     <string name="delete">Delete</string>
 

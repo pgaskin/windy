@@ -19,11 +19,16 @@ abstract class GenerateThemesTask extends DefaultTask {
     static final String OUTER = "WindyWallpaperService"
     static final String BASE = "WindyWallpaperServiceBase"
     static final String THEMES = "Themes"
+    static final String STYLES = "Styles"
     static final String SETTINGS = "SettingsActivity"
 
     @InputFile
     @PathSensitive(PathSensitivity.NONE)
     abstract RegularFileProperty getThemeConfig()
+
+    @InputFile
+    @PathSensitive(PathSensitivity.NONE)
+    abstract RegularFileProperty getStyleConfig()
 
     @OutputDirectory
     abstract DirectoryProperty getJavaOutputDir()
@@ -37,6 +42,7 @@ abstract class GenerateThemesTask extends DefaultTask {
     @TaskAction
     void generate() {
         def themes = parseThemes(themeConfig.get().asFile.text)
+        def styles = parseStyles(styleConfig.get().asFile.text)
 
         def javaRoot = javaOutputDir.get().asFile
         javaRoot.deleteDir()
@@ -44,6 +50,7 @@ abstract class GenerateThemesTask extends DefaultTask {
         pkgDir.mkdirs()
         new File(pkgDir, "${OUTER}.java").setText(renderJava(themes), "UTF-8")
         new File(pkgDir, "${THEMES}.java").setText(renderThemesJava(themes), "UTF-8")
+        new File(pkgDir, "${STYLES}.java").setText(renderStylesJava(styles), "UTF-8")
 
         def resRoot = resOutputDir.get().asFile
         resRoot.deleteDir()
@@ -90,6 +97,41 @@ abstract class GenerateThemesTask extends DefaultTask {
             throw new GradleException("No themes parsed from `Theme::ALL` in config.rs")
         }
         return themes
+    }
+
+    static List<String> parseStyles(String src) {
+        def m = (src =~ /(?s)pub const ALL\s*:[^=]*=\s*&\[(.*?)]\s*;/)
+        if (!m.find()) {
+            throw new GradleException("Could not find `Style::ALL` array in color.rs")
+        }
+        def styles = []
+        (m.group(1) =~ /Style::([A-Z0-9_]+)/).each { match ->
+            def ident = match[1]
+            def name = (src =~ /(?s)pub const ${ident}\s*:\s*Style\s*=\s*Style\s*\{.*?name\s*:\s*"([^"]*)"/)
+            if (!name.find()) {
+                throw new GradleException("Could not find the name of `Style::${ident}` in color.rs")
+            }
+            styles << name.group(1)
+        }
+        if (styles.isEmpty()) {
+            throw new GradleException("No styles parsed from `Style::ALL` in color.rs")
+        }
+        return styles
+    }
+
+    static String renderStylesJava(List<String> styles) {
+        def sb = new StringBuilder()
+        sb << "package ${PKG};\n\n"
+        sb << "/** Generated theme styles, generated from core/src/color.rs; do not edit. */\n"
+        sb << "public final class ${STYLES} {\n"
+        sb << "    /** Style names, indexed by the value shared with the native renderer. */\n"
+        sb << "    public static final String[] ALL = {\n"
+        styles.each { sb << "        ${javaStr(it)},\n" }
+        sb << "    };\n\n"
+        sb << "    private ${STYLES}() {\n"
+        sb << "    }\n"
+        sb << "}\n"
+        sb.toString()
     }
 
     static String toPascal(String ident) {

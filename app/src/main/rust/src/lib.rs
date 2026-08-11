@@ -11,7 +11,9 @@ use jni::sys::{jfloat, jint, jlong, jstring};
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
-use windy_wallpaper_core::{Config, Renderer, Theme, ThemeColors, ThemeParams, ThemeSource};
+use windy_wallpaper_core::{
+    Config, Renderer, Style, Theme, ThemeColors, ThemeParams, ThemeSource, generate,
+};
 
 // must match net.pgaskin.windy.CustomTheme
 const COLOR_SLOW: usize = 0;
@@ -442,6 +444,33 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeCustomT
         Ok::<jint, jni::errors::Error>(pack_argb([r, g, b, 1.0]))
     })
     .resolve::<LogErrorAndDefault>()
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeGenerateColors<'local>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass,
+    seed: jint,
+    style: jint,
+) -> jni::sys::jintArray {
+    env.with_env(|env| -> Result<JIntArray<'local>, jni::errors::Error> {
+        // with_env catches panics
+        let [r, g, b, _] = unpack_argb(seed);
+        let style = Style::ALL
+            .get(style.max(0) as usize)
+            .unwrap_or(&Style::PLAIN);
+        let colors = generate([r, g, b], style);
+        let mut packed = [0 as jint; COLOR_COUNT];
+        packed[COLOR_SLOW] = pack_argb(colors.slow_wind_color);
+        packed[COLOR_FAST] = pack_argb(colors.fast_wind_color);
+        packed[COLOR_BG1] = pack_argb(colors.bg_color1);
+        packed[COLOR_BG2] = pack_argb(colors.bg_color2);
+        let array = env.new_int_array(COLOR_COUNT)?;
+        array.set_region(env, 0, &packed)?;
+        Ok(array)
+    })
+    .resolve::<LogErrorAndDefault>()
+    .into_raw()
 }
 
 fn theme_colors(env: &mut jni::Env, colors: &JIntArray) -> Result<ThemeColors, jni::errors::Error> {
