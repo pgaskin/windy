@@ -43,10 +43,10 @@ impl Config {
     /// [`ThemeParams`].
     pub fn with_theme(theme: &Theme) -> Self {
         let mut config = Self {
-            slow_wind_color: theme.slow_wind_color,
-            fast_wind_color: theme.fast_wind_color,
-            bg_color1: theme.bg_color1,
-            bg_color2: theme.bg_color2,
+            slow_wind_color: theme.colors.slow_wind_color,
+            fast_wind_color: theme.colors.fast_wind_color,
+            bg_color1: theme.colors.bg_color1,
+            bg_color2: theme.colors.bg_color2,
             ..Self::default()
         };
         if let Some(params) = theme.params {
@@ -62,12 +62,18 @@ impl Config {
 #[derive(Clone, Copy, Debug)]
 pub struct Theme {
     pub name: &'static str,
-    pub slow_wind_color: [f32; 4],
-    pub fast_wind_color: [f32; 4],
-    pub bg_color1: [f32; 4],
-    pub bg_color2: [f32; 4],
+    pub colors: ThemeColors,
     pub wallpaper_color: [f32; 3], // does not affect rendering, currently only for Android
     pub params: Option<ThemeParams>, // param overrides, None uses the defaults
+}
+
+/// The four colors a theme is made of.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ThemeColors {
+    pub slow_wind_color: [f32; 4], // rgba [0,1]
+    pub fast_wind_color: [f32; 4], // rgba [0,1]
+    pub bg_color1: [f32; 4],       // rgba [0,1]
+    pub bg_color2: [f32; 4],       // rgba [0,1]
 }
 
 /// Additional [`Config`] params a theme can override.
@@ -82,109 +88,133 @@ pub struct ThemeParams {
 impl Theme {
     pub const BLUE: Theme = Theme {
         name: "Blue",
-        slow_wind_color: [0.498_039_22, 0.819_607_85, 0.584_313_75, 0.30],
-        fast_wind_color: [0.980_392_16, 0.941_176_5, 0.823_529_4, 0.25],
-        bg_color1: rgba8(0x044866FF),
-        bg_color2: rgba8(0x0085AAFF),
+        colors: ThemeColors {
+            slow_wind_color: [0.498_039_22, 0.819_607_85, 0.584_313_75, 0.30],
+            fast_wind_color: [0.980_392_16, 0.941_176_5, 0.823_529_4, 0.25],
+            bg_color1: rgba8(0x044866FF),
+            bg_color2: rgba8(0x0085AAFF),
+        },
         wallpaper_color: rgb8(0x085173FF),
         params: None,
     };
     pub const GREEN: Theme = Theme {
         name: "Green",
-        slow_wind_color: [0.50, 0.82, 0.18, 0.30],
-        fast_wind_color: [0.98, 0.94, 0.12, 0.25],
-        bg_color1: rgba8(0x044822FF),
-        bg_color2: rgba8(0x008533FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.50, 0.82, 0.18, 0.30],
+            fast_wind_color: [0.98, 0.94, 0.12, 0.25],
+            bg_color1: rgba8(0x044822FF),
+            bg_color2: rgba8(0x008533FF),
+        },
         wallpaper_color: rgb8(0x085112FF),
         params: None,
     };
     pub const BLUSH: Theme = Theme {
         name: "Blush",
-        slow_wind_color: [0.850_980_4, 0.690_196_1, 0.917_647_06, 0.30],
-        fast_wind_color: [0.862_745_1, 0.964_705_9, 1.0, 0.50],
-        bg_color1: rgba8(0x4078C8FF),
-        bg_color2: rgba8(0xD9B0EAFF),
+        colors: ThemeColors {
+            slow_wind_color: [0.850_980_4, 0.690_196_1, 0.917_647_06, 0.30],
+            fast_wind_color: [0.862_745_1, 0.964_705_9, 1.0, 0.50],
+            bg_color1: rgba8(0x4078C8FF),
+            bg_color2: rgba8(0xD9B0EAFF),
+        },
         wallpaper_color: rgb8(0x4A7CC9FF),
         params: None,
     };
     pub const MIDNIGHT: Theme = Theme {
         name: "Midnight",
-        slow_wind_color: [0.215_686_28, 0.219_607_84, 0.215_686_28, 0.25],
-        fast_wind_color: [0.729_411_8, 0.741_176_5, 0.737_254_9, 0.30],
-        bg_color1: rgba8(0x000000AF),
-        bg_color2: rgba8(0x464749FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.215_686_28, 0.219_607_84, 0.215_686_28, 0.25],
+            fast_wind_color: [0.729_411_8, 0.741_176_5, 0.737_254_9, 0.30],
+            bg_color1: rgba8(0x000000AF),
+            bg_color2: rgba8(0x464749FF),
+        },
         wallpaper_color: rgb8(0x101110FF),
         params: None,
     };
     pub const DEEP_BLUE: Theme = Theme {
         name: "DeepBlue",
-        slow_wind_color: [0.2824, 0.3176, 0.4902, 0.1840],
-        fast_wind_color: [0.1725, 0.5843, 0.5843, 0.2750],
-        bg_color1: [0.0510, 0.0275, 0.0275, 1.0000],
-        bg_color2: [0.0039, 0.0039, 0.1255, 1.0000],
+        colors: ThemeColors {
+            slow_wind_color: [0.2824, 0.3176, 0.4902, 0.1840],
+            fast_wind_color: [0.1725, 0.5843, 0.5843, 0.2750],
+            bg_color1: [0.0510, 0.0275, 0.0275, 1.0000],
+            bg_color2: [0.0039, 0.0039, 0.1255, 1.0000],
+        },
         wallpaper_color: rgb8(0x0D0707FF),
         params: None,
     };
     pub const MAROON: Theme = Theme {
         name: "Maroon",
-        slow_wind_color: [0.576, 0.192, 0.192, 0.25],
-        fast_wind_color: [0.792, 0.376, 0.376, 0.30],
-        bg_color1: rgba8(0x1A0909FF),
-        bg_color2: rgba8(0x451717FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.576, 0.192, 0.192, 0.25],
+            fast_wind_color: [0.792, 0.376, 0.376, 0.30],
+            bg_color1: rgba8(0x1A0909FF),
+            bg_color2: rgba8(0x451717FF),
+        },
         wallpaper_color: rgb8(0x4F1A1AFF),
         params: None,
     };
     pub const SEPIA: Theme = Theme {
         name: "Sepia",
-        slow_wind_color: [0.26, 0.16, 0.05, 0.25],
-        fast_wind_color: [0.44, 0.28, 0.11, 0.30],
-        bg_color1: rgba8(0xBDA682FF),
-        bg_color2: rgba8(0xC49F64FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.26, 0.16, 0.05, 0.25],
+            fast_wind_color: [0.44, 0.28, 0.11, 0.30],
+            bg_color1: rgba8(0xBDA682FF),
+            bg_color2: rgba8(0xC49F64FF),
+        },
         wallpaper_color: rgb8(0xD87900FF),
         params: None,
     };
     pub const SUNSET_WHIRLED: Theme = Theme {
         name: "SunsetWhirled",
-        slow_wind_color: [0.976_470_6, 0.862_745_1, 0.647_058_84, 0.60],
-        fast_wind_color: [1.0, 1.0, 1.0, 0.70],
-        bg_color1: rgba8(0xE58186DF),
-        bg_color2: rgba8(0xF7B38DDF),
+        colors: ThemeColors {
+            slow_wind_color: [0.976_470_6, 0.862_745_1, 0.647_058_84, 0.60],
+            fast_wind_color: [1.0, 1.0, 1.0, 0.70],
+            bg_color1: rgba8(0xE58186DF),
+            bg_color2: rgba8(0xF7B38DDF),
+        },
         wallpaper_color: rgb8(0xE88991FF),
         params: None,
     };
     pub const TURQUOISE_WHIRLED: Theme = Theme {
         name: "TurquoiseWhirled",
-        slow_wind_color: [0.498_039_22, 0.819_607_85, 0.584_313_75, 0.60],
-        fast_wind_color: [1.0, 1.0, 1.0, 0.50],
-        bg_color1: rgba8(0x0093B9DF),
-        bg_color2: rgba8(0xEFDD81DF),
+        colors: ThemeColors {
+            slow_wind_color: [0.498_039_22, 0.819_607_85, 0.584_313_75, 0.60],
+            fast_wind_color: [1.0, 1.0, 1.0, 0.50],
+            bg_color1: rgba8(0x0093B9DF),
+            bg_color2: rgba8(0xEFDD81DF),
+        },
         wallpaper_color: rgb8(0x0996B7FF),
         params: None,
     };
     pub const SKY_BLUE_WHIRLED: Theme = Theme {
         name: "SkyBlueWhirled",
-        slow_wind_color: [1.0, 1.0, 1.0, 0.50],
-        fast_wind_color: [0.956_862_75, 1.0, 0.529_411_8, 0.25],
-        bg_color1: rgba8(0x75AAFAFF),
-        bg_color2: rgba8(0xF4FF87FF),
+        colors: ThemeColors {
+            slow_wind_color: [1.0, 1.0, 1.0, 0.50],
+            fast_wind_color: [0.956_862_75, 1.0, 0.529_411_8, 0.25],
+            bg_color1: rgba8(0x75AAFAFF),
+            bg_color2: rgba8(0xF4FF87FF),
+        },
         wallpaper_color: rgb8(0x7BAEF5FF),
         params: None,
     };
     pub const SPARK_WHIRLED: Theme = Theme {
         name: "SparkWhirled",
-        slow_wind_color: [0.25, 0.00, 0.50, 0.85],
-        fast_wind_color: [1.00, 0.50, 0.00, 0.65],
-        bg_color1: rgba8(0x270D03FF),
-        bg_color2: rgba8(0x031A27FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.25, 0.00, 0.50, 0.85],
+            fast_wind_color: [1.00, 0.50, 0.00, 0.65],
+            bg_color1: rgba8(0x270D03FF),
+            bg_color2: rgba8(0x031A27FF),
+        },
         wallpaper_color: rgb8(0x96241AFF),
         params: None,
     };
     pub const MATRIX: Theme = Theme {
         name: "Matrix",
-        slow_wind_color: [0.200, 0.384, 0.631, 0.137],
-        fast_wind_color: [0.016, 1.000, 0.000, 1.000],
-        bg_color1: rgba8(0x090E15FF),
-        bg_color2: rgba8(0x031D10FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.200, 0.384, 0.631, 0.137],
+            fast_wind_color: [0.016, 1.000, 0.000, 1.000],
+            bg_color1: rgba8(0x090E15FF),
+            bg_color2: rgba8(0x031D10FF),
+        },
         wallpaper_color: rgb8(0x2B5542FF),
         params: Some(ThemeParams {
             line_half_width: 1.55,
@@ -197,10 +227,12 @@ impl Theme {
     /// Initial custom colors for user-defined theme.
     pub const CUSTOM: Theme = Theme {
         name: "Custom",
-        slow_wind_color: [0.60, 0.75, 0.95, 0.30],
-        fast_wind_color: [1.00, 1.00, 1.00, 0.35],
-        bg_color1: rgba8(0x1B2735FF),
-        bg_color2: rgba8(0x3A5A80FF),
+        colors: ThemeColors {
+            slow_wind_color: [0.60, 0.75, 0.95, 0.30],
+            fast_wind_color: [1.00, 1.00, 1.00, 0.35],
+            bg_color1: rgba8(0x1B2735FF),
+            bg_color2: rgba8(0x3A5A80FF),
+        },
         wallpaper_color: rgb8(0x2B4055FF),
         params: None,
     };

@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 Patrick Gaskin
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-use windy_wallpaper_core::{Config, Theme, ThemeParams, ThemeSource};
+use windy_wallpaper_core::{Config, Theme, ThemeColors, ThemeParams, ThemeSource};
 
 pub struct ThemeEditor {
     pub name: String,
@@ -210,10 +210,12 @@ impl ThemeEditor {
         let [r, g, b, _] = self.bg_color1;
         ThemeSource {
             name: &self.name,
-            slow_wind_color: self.slow_wind_color,
-            fast_wind_color: self.fast_wind_color,
-            bg_color1: self.bg_color1,
-            bg_color2: self.bg_color2,
+            colors: ThemeColors {
+                slow_wind_color: self.slow_wind_color,
+                fast_wind_color: self.fast_wind_color,
+                bg_color1: self.bg_color1,
+                bg_color2: self.bg_color2,
+            },
             wallpaper_color: [r, g, b], // no tint for the preview, so use the background
             params: ThemeParams {
                 line_half_width: self.line_half_width,

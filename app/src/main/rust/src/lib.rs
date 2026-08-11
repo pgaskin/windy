@@ -11,7 +11,7 @@ use jni::sys::{jfloat, jint, jlong, jstring};
 use raw_window_handle::{
     AndroidDisplayHandle, AndroidNdkWindowHandle, RawDisplayHandle, RawWindowHandle,
 };
-use windy_wallpaper_core::{Config, Renderer, Theme, ThemeParams, ThemeSource};
+use windy_wallpaper_core::{Config, Renderer, Theme, ThemeColors, ThemeParams, ThemeSource};
 
 // must match net.pgaskin.windy.CustomTheme
 const COLOR_SLOW: usize = 0;
@@ -407,11 +407,11 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeCo
         .copied()
         .unwrap_or(Theme::BLUE);
     let rgba = match component.max(0) as usize {
-        COLOR_SLOW => theme.slow_wind_color,
-        COLOR_FAST => theme.fast_wind_color,
+        COLOR_SLOW => theme.colors.slow_wind_color,
+        COLOR_FAST => theme.colors.fast_wind_color,
         // alpha doesn't matter
-        COLOR_BG1 => opaque(theme.bg_color1),
-        COLOR_BG2 => opaque(theme.bg_color2),
+        COLOR_BG1 => opaque(theme.colors.bg_color1),
+        COLOR_BG2 => opaque(theme.colors.bg_color2),
         _ => {
             // COLOR_TINT and anything unknown
             let [r, g, b] = theme.wallpaper_color;
@@ -461,10 +461,12 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeSo
         let [r, g, b, _] = unpack_argb(colors_buf[COLOR_TINT]);
         let source = ThemeSource {
             name: &name,
-            slow_wind_color: unpack_argb(colors_buf[COLOR_SLOW]),
-            fast_wind_color: unpack_argb(colors_buf[COLOR_FAST]),
-            bg_color1: unpack_argb(colors_buf[COLOR_BG1]),
-            bg_color2: unpack_argb(colors_buf[COLOR_BG2]),
+            colors: ThemeColors {
+                slow_wind_color: unpack_argb(colors_buf[COLOR_SLOW]),
+                fast_wind_color: unpack_argb(colors_buf[COLOR_FAST]),
+                bg_color1: unpack_argb(colors_buf[COLOR_BG1]),
+                bg_color2: unpack_argb(colors_buf[COLOR_BG2]),
+            },
             wallpaper_color: [r, g, b],
             params: ThemeParams {
                 line_half_width: params_buf[PARAM_LINE_HALF_WIDTH], // dp, like the theme
