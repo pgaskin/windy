@@ -1,5 +1,5 @@
 * Add matrix theme.
-* Tweak deep blue theam colors.
+* Tweak deep blue theme colors.
 * Make the animation smoother with higher wind speeds.
 * Add theme export dev option.
 * Reduce APK size.
