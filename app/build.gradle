@@ -18,8 +18,8 @@ android {
         applicationId "net.pgaskin.windy"
         minSdk 30
         targetSdk 36
-        versionCode 11
-        versionName "11"
+        versionCode 12
+        versionName "12"
 
         buildConfigField "String", "WIND_FIELD_API_URL", "\"https://windy.api.pgaskin.net/wind_cache.png?filter=1\""
         buildConfigField "long", "WIND_FIELD_UPDATE_INTERVAL", "360" // min
