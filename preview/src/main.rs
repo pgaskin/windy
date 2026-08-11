@@ -83,6 +83,10 @@ fn screenshots(out_dir: PathBuf) {
     let wind = image::load_from_memory(WIND_PNG).unwrap().to_rgba8();
 
     for theme in Theme::ALL {
+        if theme.name == Theme::CUSTOM.name {
+            continue;
+        }
+
         let mut config = Config::with_theme(theme);
 
         // zoom in a bit
