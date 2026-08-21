@@ -101,6 +101,14 @@ public final class WindyWallpaperNative implements AutoCloseable {
         return nativeGenerateColors(seed, style);
     }
 
+    /**
+     * The {@code {west, north, east, south}} degrees shown for a location on a
+     * screen with the provided aspect ratio (width/height).
+     */
+    public static float[] coordinateBounds(float lng, float lat, float aspect) {
+        return nativeCoordinateBounds(lng, lat, aspect);
+    }
+
     public static float themeParam(int themeIndex, int param) {
         return nativeThemeParam(themeIndex, param);
     }
@@ -129,6 +137,7 @@ public final class WindyWallpaperNative implements AutoCloseable {
     private static native int nativeThemeTint(int themeIndex);
     private static native int nativeCustomTint(int[] colors);
     private static native int[] nativeGenerateColors(int seed, int style);
+    private static native float[] nativeCoordinateBounds(float lng, float lat, float aspect);
     private static native float nativeThemeParam(int themeIndex, int param);
     private static native String nativeThemeSource(String name, int[] colors, float[] params);
 }

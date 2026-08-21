@@ -506,6 +506,28 @@ pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemePa
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeCoordinateBounds<
+    'local,
+>(
+    mut env: EnvUnowned<'local>,
+    _class: JClass,
+    lng: jfloat,
+    lat: jfloat,
+    aspect: jfloat,
+) -> jni::sys::jfloatArray {
+    env.with_env(|env| -> Result<JFloatArray<'local>, jni::errors::Error> {
+        // with_env catches panics
+        // the window size isn't a theme param, so all configs are the same
+        let bounds = Config::default().coordinate_bounds(lng, lat, aspect);
+        let array = env.new_float_array(bounds.len())?;
+        array.set_region(env, 0, &bounds)?;
+        Ok(array)
+    })
+    .resolve::<LogErrorAndDefault>()
+    .into_raw()
+}
+
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_net_pgaskin_windy_WindyWallpaperNative_nativeThemeSource<'local>(
     mut env: EnvUnowned<'local>,
     _class: JClass,

@@ -54,6 +54,7 @@
     <string name="use_current_location">Use current location</string>
     <string name="location_interval">Location update interval</string>
     <string name="location_interval_summary">Interval to refresh the current position at (%s)</string>
+    <string name="coordinate_bounds">Showing %1$s to %2$s (approximate, depends on wallpaper size/orientation).</string>
     <string name="location_privacy_note">Location information is processed locally and not sent to any remote servers.</string>
 
     <string name="location_consent_message">Location is required to update wind map position. Location information is processed locally and not sent to any remote servers.</string>

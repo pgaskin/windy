@@ -13,6 +13,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Insets;
+import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -31,6 +32,7 @@ import android.text.format.DateUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -74,6 +76,7 @@ public class SettingsActivity extends Activity {
         private PreferenceCategory locationCategory;
         private Preference locationPref;
         private Preference backgroundLocationPref;
+        private Preference boundsPref;
         private Preference updateNowPref;
         private SwitchPreference meteredPref;
         private EditTextPreference urlPref;
@@ -130,8 +133,12 @@ public class SettingsActivity extends Activity {
                 return true;
             });
 
+            boundsPref = new Preference(context);
+            boundsPref.setOrder(3); // added and removed as needed
+            boundsPref.setSelectable(false);
+
             final Preference privacy = new Preference(context);
-            privacy.setOrder(3);
+            privacy.setOrder(4);
             privacy.setLayoutResource(R.layout.preference_note); // the title is the note text
             privacy.setTitle(R.string.location_privacy_note);
             privacy.setSelectable(false);
@@ -339,6 +346,7 @@ public class SettingsActivity extends Activity {
                     WindField.invalidate();
                     break;
                 case Prefs.KEY_GPU_MODEL:
+                case Prefs.KEY_DEVELOPER_MODE:
                     break; // just refresh
                 default:
                     return;
@@ -364,6 +372,17 @@ public class SettingsActivity extends Activity {
             } else {
                 locationCategory.addPreference(backgroundLocationPref);
                 backgroundLocationPref.setOrder(2); // after the interval, before the note
+            }
+
+            final String bounds = location != null && Prefs.developerMode(context)
+                    ? formatBounds(context, location)
+                    : null;
+            if (bounds != null) {
+                boundsPref.setSummary(bounds);
+                locationCategory.addPreference(boundsPref);
+                boundsPref.setOrder(3); // after the permission, before the note
+            } else {
+                locationCategory.removePreference(boundsPref);
             }
 
             final long dataInterval = Prefs.dataInterval(context);
@@ -434,6 +453,23 @@ public class SettingsActivity extends Activity {
 
         private static String formatLocation(float[] lngLat) {
             return String.format(Locale.US, "%.1f, %.1f", lngLat[0], lngLat[1]);
+        }
+
+        /**
+         * The region shown by the wallpaper, assuming it covers the display, or
+         * null if it couldn't be computed.
+         */
+        private String formatBounds(Context context, float[] lngLat) {
+            final Rect display = context.getSystemService(WindowManager.class)
+                    .getMaximumWindowMetrics().getBounds();
+            final float[] bounds = WindyWallpaperNative.coordinateBounds(
+                    lngLat[0], lngLat[1], display.width() / (float) display.height());
+            if (bounds == null) {
+                return null;
+            }
+            return getString(R.string.coordinate_bounds,
+                    formatLocation(new float[]{bounds[0], bounds[1]}), // west, north
+                    formatLocation(new float[]{bounds[2], bounds[3]})); // east, south
         }
 
         private String formatUpdated(Context context, long time) {
