@@ -507,14 +507,9 @@ impl Renderer {
     }
 
     fn compute_bounds(&self) -> [f32; 4] {
-        // like the original wind field region code
         let [lng, lat] = self.user_location;
-        let wnd_lng = self.config.window_size * (self.width as f32 / self.height as f32);
-        let wnd_lat = self.config.window_size;
-        let bound_l = (lng - wnd_lng / 2.0).clamp(-180.0, 180.0);
-        let bound_t = (lat + wnd_lat / 2.0).clamp(-90.0, 90.0);
-        let bound_r = (bound_l + wnd_lng).clamp(-180.0, 180.0);
-        let bound_b = (bound_t - wnd_lat).clamp(-90.0, 90.0);
+        let aspect = self.width as f32 / self.height as f32;
+        let [bound_l, bound_t, bound_r, bound_b] = self.config.coordinate_bounds(lng, lat, aspect);
         let u = lng_to_ratio(bound_l);
         let v_top = lat_to_ratio(bound_t);
         let u2 = lng_to_ratio(bound_r);

@@ -57,6 +57,19 @@ impl Config {
         }
         config
     }
+
+    /// The `(west, north, east, south)` degrees shown for a location on a
+    /// screen with the provided aspect ratio (width/height).
+    pub fn coordinate_bounds(&self, lng: f32, lat: f32, aspect: f32) -> [f32; 4] {
+        // like the original wind field region code
+        let wnd_lng = self.window_size * aspect;
+        let wnd_lat = self.window_size;
+        let bound_l = (lng - wnd_lng / 2.0).clamp(-180.0, 180.0);
+        let bound_t = (lat + wnd_lat / 2.0).clamp(-90.0, 90.0);
+        let bound_r = (bound_l + wnd_lng).clamp(-180.0, 180.0);
+        let bound_b = (bound_t - wnd_lat).clamp(-90.0, 90.0);
+        [bound_l, bound_t, bound_r, bound_b]
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
