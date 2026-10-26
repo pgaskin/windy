@@ -34,7 +34,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="8dp"
             android:background="@drawable/pill"
             android:minHeight="44dp"
             android:paddingStart="24dp"
@@ -43,6 +43,23 @@
             android:textAllCaps="false"
             android:textColor="@android:color/white"
             android:textSize="15sp" />
+
+        <Button
+            android:id="@+id/set_wallpaper_tv"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/pill"
+            android:minHeight="44dp"
+            android:paddingStart="24dp"
+            android:paddingEnd="24dp"
+            android:text="@string/set_as_wallpaper_tv"
+            android:textAllCaps="false"
+            android:textColor="@android:color/white"
+            android:textSize="15sp"
+            android:visibility="gone" />
 
         <net.pgaskin.windy.CustomThemeView
             android:id="@+id/custom_theme"

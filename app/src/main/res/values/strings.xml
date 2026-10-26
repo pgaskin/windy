@@ -12,6 +12,7 @@
     <string name="accept">Accept</string>
     <string name="decline">Decline</string>
     <string name="set_as_wallpaper">Set as wallpaper</string>
+    <string name="set_as_wallpaper_tv">Set as wallpaper (Android TV)</string>
     <string name="set_wallpaper_failed">Couldn\'t open the live wallpaper picker</string>
 
     <string name="customize">Customize</string>

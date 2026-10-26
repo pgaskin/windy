@@ -67,6 +67,8 @@ public class MainActivity extends Activity {
         });
 
         findViewById(R.id.set_wallpaper).setOnClickListener(v -> setAsWallpaper());
+        findViewById(R.id.set_wallpaper_tv).setOnClickListener(v -> setAsWallpaperChooser());
+        findViewById(R.id.set_wallpaper_tv).setVisibility(shouldShowTvWallpaperButton() ? View.VISIBLE : View.GONE);
 
         applyInsets(toolbar);
         applySystemBarAppearance();
@@ -215,13 +217,27 @@ public class MainActivity extends Activity {
             startActivityForResult(intent, REQUEST_SET_WALLPAPER);
         } catch (ActivityNotFoundException ex) {
             Log.w(TAG, "no live wallpaper preview activity, opening the chooser: " + ex);
-            try {
-                startActivityForResult(new Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER), REQUEST_SET_WALLPAPER);
-            } catch (ActivityNotFoundException ex1) {
-                Log.e(TAG, "no live wallpaper chooser either: " + ex1);
-                Toast.makeText(this, R.string.set_wallpaper_failed, Toast.LENGTH_LONG).show();
-            }
+            setAsWallpaperChooser();
         }
+    }
+
+    private void setAsWallpaperChooser() {
+        try {
+            startActivityForResult(new Intent(WallpaperManager.ACTION_LIVE_WALLPAPER_CHOOSER), REQUEST_SET_WALLPAPER);
+        } catch (ActivityNotFoundException ex) {
+            Log.e(TAG, "no live wallpaper chooser: " + ex);
+            Toast.makeText(this, R.string.set_wallpaper_failed, Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private boolean shouldShowTvWallpaperButton() {
+        if ((getResources().getConfiguration().uiMode & Configuration.UI_MODE_TYPE_MASK) != Configuration.UI_MODE_TYPE_TELEVISION) {
+            return false;
+        }
+        final ComponentName home = new Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_HOME)
+                .resolveActivity(getPackageManager());
+        return home != null && "com.klevico.monet".equals(home.getPackageName());
     }
 
     @Override
